@@ -1,4 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-  <rect x="7.5" y="7.5" width="21" height="21" rx="5.5" fill="none" stroke="#247bbf" stroke-width="2.5"/>
-  <circle cx="18" cy="18" r="4" fill="#247bbf"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" fill="none">
+  <defs>
+    <linearGradient id="zm_icon_gold" x1="8" y1="8" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E5B85B"/>
+      <stop offset="1" stop-color="#B87D22"/>
+    </linearGradient>
+    <linearGradient id="zm_icon_indigo" x1="10" y1="10" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7B8CDE"/>
+      <stop offset="1" stop-color="#4F5FD5"/>
+    </linearGradient>
+    <mask id="zm_taiji_cutout">
+      <rect width="36" height="36" fill="white"/>
+      <circle cx="18" cy="14.5" r="1.45" fill="black"/>
+    </mask>
+  </defs>
+  <!-- Outer compass ring with 4 cardinal ticks (centered 22x22 optical extent) -->
+  <circle cx="18" cy="18" r="10.2" stroke="url(#zm_icon_gold)" stroke-width="1.8"/>
+  <path d="M18 5.8V8.1M18 27.9V30.2M5.8 18H8.1M27.9 18H30.2" stroke="url(#zm_icon_gold)" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Inner Taiji mark with genuinely transparent cutout -->
+  <circle cx="18" cy="18" r="6.8" stroke="url(#zm_icon_indigo)" stroke-width="1.4"/>
+  <path d="M18 11.2A6.8 6.8 0 0 1 18 24.8A3.4 3.4 0 0 1 18 18A3.4 3.4 0 0 0 18 11.2Z" fill="url(#zm_icon_gold)" mask="url(#zm_taiji_cutout)"/>
+  <circle cx="18" cy="21.4" r="1.35" fill="url(#zm_icon_indigo)"/>
 </svg>

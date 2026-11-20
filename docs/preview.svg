@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" fill="none">
+  <defs>
+    <linearGradient id="zm_bg" x1="32" y1="20" x2="608" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#171B2B"/>
+      <stop offset="1" stop-color="#1F2438"/>
+    </linearGradient>
+    <linearGradient id="zm_gold" x1="80" y1="60" x2="220" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0C975"/>
+      <stop offset="1" stop-color="#B98226"/>
+    </linearGradient>
+    <linearGradient id="zm_violet" x1="400" y1="50" x2="580" y2="250" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <mask id="zm_prev_taiji">
+      <rect width="640" height="300" fill="white"/>
+      <circle cx="152" cy="132" r="6" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- Main rounded showcase panel (32px safe margin feel) -->
+  <rect x="24" y="20" width="592" height="260" rx="18" fill="url(#zm_bg)" stroke="#3B425F" stroke-width="1.5"/>
+
+  <!-- Left: Celestial Luopan Compass -->
+  <g>
+    <circle cx="152" cy="150" r="94" stroke="#C9973B" stroke-opacity="0.32" stroke-width="1.5"/>
+    <circle cx="152" cy="150" r="76" stroke="#C9973B" stroke-opacity="0.65" stroke-width="1.8"/>
+    <circle cx="152" cy="150" r="56" stroke="#818CF8" stroke-opacity="0.48" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <!-- 8 Bagua directional dots -->
+    <circle cx="152" cy="74" r="3.5" fill="#F0C975"/>
+    <circle cx="205.7" cy="96.3" r="3.5" fill="#10B981"/>
+    <circle cx="228" cy="150" r="3.5" fill="#EF4444"/>
+    <circle cx="205.7" cy="203.7" r="3.5" fill="#D97706"/>
+    <circle cx="152" cy="226" r="3.5" fill="#3B82F6"/>
+    <circle cx="98.3" cy="203.7" r="3.5" fill="#A855F7"/>
+    <circle cx="76" cy="150" r="3.5" fill="#EC4899"/>
+    <circle cx="98.3" cy="96.3" r="3.5" fill="#EAB308"/>
+    <!-- Cardinal axis lines -->
+    <path d="M152 46V64M152 236V254M48 150H66M238 150H256" stroke="url(#zm_gold)" stroke-width="2" stroke-linecap="round"/>
+    <!-- Center Taiji -->
+    <circle cx="152" cy="150" r="36" fill="#121524" stroke="url(#zm_gold)" stroke-width="2"/>
+    <path d="M152 114A36 36 0 0 1 152 186A18 18 0 0 1 152 150A18 18 0 0 0 152 114Z" fill="url(#zm_gold)" mask="url(#zm_prev_taiji)"/>
+    <circle cx="152" cy="168" r="6" fill="#F0C975"/>
+  </g>
+
+  <!-- Right: 5 Metaphysics Visual Modules (2 top, 3 bottom) -->
+  <!-- Module 1: Bazi 4 Pillars + Five Elements -->
+  <g transform="translate(284, 44)">
+    <rect width="144" height="98" rx="12" fill="#232940" stroke="#3B4568" stroke-width="1.2"/>
+    <rect x="14" y="18" width="24" height="62" rx="6" fill="#10B981" fill-opacity="0.22" stroke="#10B981" stroke-width="1.3"/>
+    <rect x="44" y="18" width="24" height="62" rx="6" fill="#EF4444" fill-opacity="0.22" stroke="#EF4444" stroke-width="1.3"/>
+    <rect x="74" y="18" width="24" height="62" rx="6" fill="#EAB308" fill-opacity="0.24" stroke="#EAB308" stroke-width="1.6"/>
+    <rect x="104" y="18" width="24" height="62" rx="6" fill="#3B82F6" fill-opacity="0.22" stroke="#3B82F6" stroke-width="1.3"/>
+    <circle cx="26" cy="36" r="5" fill="#10B981"/>
+    <circle cx="56" cy="36" r="5" fill="#EF4444"/>
+    <circle cx="86" cy="36" r="5" fill="#EAB308"/>
+    <circle cx="116" cy="36" r="5" fill="#3B82F6"/>
+    <rect x="20" y="54" width="12" height="16" rx="3" fill="#10B981" fill-opacity="0.7"/>
+    <rect x="50" y="54" width="12" height="16" rx="3" fill="#EF4444" fill-opacity="0.7"/>
+    <rect x="80" y="54" width="12" height="16" rx="3" fill="#EAB308" fill-opacity="0.8"/>
+    <rect x="110" y="54" width="12" height="16" rx="3" fill="#3B82F6" fill-opacity="0.7"/>
+  </g>
+
+  <!-- Module 2: Qimen 3x3 LuoShu Grid -->
+  <g transform="translate(442, 44)">
+    <rect width="144" height="98" rx="12" fill="#232940" stroke="#3B4568" stroke-width="1.2"/>
+    <rect x="20" y="14" width="30" height="20" rx="4" fill="#2F3756" stroke="#6366F1" stroke-width="1"/>
+    <rect x="57" y="14" width="30" height="20" rx="4" fill="#2F3756" stroke="#EF4444" stroke-width="1"/>
+    <rect x="94" y="14" width="30" height="20" rx="4" fill="#2F3756" stroke="#D97706" stroke-width="1"/>
+    <rect x="20" y="39" width="30" height="20" rx="4" fill="#2F3756" stroke="#10B981" stroke-width="1"/>
+    <rect x="57" y="39" width="30" height="20" rx="4" fill="#C9973B" fill-opacity="0.24" stroke="#F0C975" stroke-width="1.3"/>
+    <rect x="94" y="39" width="30" height="20" rx="4" fill="#2F3756" stroke="#EAB308" stroke-width="1"/>
+    <rect x="20" y="64" width="30" height="20" rx="4" fill="#2F3756" stroke="#D97706" stroke-width="1"/>
+    <rect x="57" y="64" width="30" height="20" rx="4" fill="#2F3756" stroke="#3B82F6" stroke-width="1"/>
+    <rect x="94" y="64" width="30" height="20" rx="4" fill="#10B981" fill-opacity="0.22" stroke="#10B981" stroke-width="1.3"/>
+  </g>
+
+  <!-- Module 3: Meihua 6-Line Hexagram -->
+  <g transform="translate(284, 156)">
+    <rect width="92" height="98" rx="12" fill="#232940" stroke="#3B4568" stroke-width="1.2"/>
+    <rect x="18" y="17" width="56" height="6" rx="3" fill="#F0C975"/>
+    <rect x="18" y="29" width="24" height="6" rx="3" fill="#EF4444"/>
+    <rect x="50" y="29" width="24" height="6" rx="3" fill="#EF4444"/>
+    <circle cx="79" cy="32" r="2.6" fill="#EF4444"/>
+    <rect x="18" y="41" width="56" height="6" rx="3" fill="#F0C975"/>
+    <rect x="18" y="53" width="56" height="6" rx="3" fill="#818CF8"/>
+    <rect x="18" y="65" width="24" height="6" rx="3" fill="#818CF8"/>
+    <rect x="50" y="65" width="24" height="6" rx="3" fill="#818CF8"/>
+    <rect x="18" y="77" width="24" height="6" rx="3" fill="#818CF8"/>
+    <rect x="50" y="77" width="24" height="6" rx="3" fill="#818CF8"/>
+  </g>
+
+  <!-- Module 4: Ziwei 12-Palace Astrolabe + Tri-Aspect Triangle -->
+  <g transform="translate(388, 156)">
+    <rect width="96" height="98" rx="12" fill="#232940" stroke="#3B4568" stroke-width="1.2"/>
+    <rect x="12" y="13" width="72" height="72" rx="6" stroke="#6366F1" stroke-opacity="0.6" stroke-width="1.2"/>
+    <rect x="29" y="30" width="38" height="38" rx="4" fill="#1B2034" stroke="#C9973B" stroke-width="1.1"/>
+    <polygon points="48,32 64,65 32,65" fill="#A855F7" fill-opacity="0.22" stroke="#A855F7" stroke-width="1.4"/>
+    <line x1="48" y1="32" x2="48" y2="66" stroke="#F0C975" stroke-width="1.3" stroke-dasharray="2 2"/>
+    <circle cx="48" cy="32" r="2.6" fill="#F0C975"/>
+    <circle cx="64" cy="65" r="2.4" fill="#A855F7"/>
+    <circle cx="32" cy="65" r="2.4" fill="#A855F7"/>
+  </g>
+
+  <!-- Module 5: Hepan 6-Axis Synastry Radar -->
+  <g transform="translate(496, 156)">
+    <rect width="90" height="98" rx="12" fill="#232940" stroke="#3B4568" stroke-width="1.2"/>
+    <polygon points="45,16 71,31 71,61 45,76 19,61 19,31" fill="none" stroke="#4B5578" stroke-width="1"/>
+    <polygon points="45,27 62,37 62,55 45,65 28,55 28,37" fill="none" stroke="#4B5578" stroke-width="0.9"/>
+    <polygon points="45,20 67,34 65,58 45,70 25,56 26,35" fill="#EC4899" fill-opacity="0.26" stroke="#EC4899" stroke-width="1.6"/>
+    <circle cx="45" cy="20" r="2.6" fill="#EC4899"/>
+    <circle cx="67" cy="34" r="2.6" fill="#EC4899"/>
+    <circle cx="65" cy="58" r="2.6" fill="#EC4899"/>
+    <circle cx="45" cy="70" r="2.6" fill="#EC4899"/>
+    <circle cx="25" cy="56" r="2.6" fill="#EC4899"/>
+    <circle cx="26" cy="35" r="2.6" fill="#EC4899"/>
+  </g>
+</svg>

@@ -1,0 +1,65 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      iztro:
+        specifier: ^2.5.0
+        version: 2.6.5
+      lunar-javascript:
+        specifier: ^1.7.7
+        version: 1.7.8
+
+packages:
+
+  '@babel/runtime@7.29.14':
+    resolution: {integrity: sha512-Y5tqevQaUAZhhj82BpYMNC1ssvLQTVAfwKdm8iy8qwmhvC2/CpcAu8OC+QEtjM7pMk7knx83u1Qj8gzkicyelw==}
+    engines: {node: '>=6.9.0'}
+
+  dayjs@1.11.23:
+    resolution: {integrity: sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ==}
+
+  i18next@23.16.8:
+    resolution: {integrity: sha512-06r/TitrM88Mg5FdUXAKL96dJMzgqLE5dv3ryBAra4KCwD9mJ4ndOTS95ZuymIGoE+2hzfdaMak2X11/es7ZWg==}
+
+  iztro@2.6.5:
+    resolution: {integrity: sha512-mObboktSBInBv68+dr6R46cyMUXlYKp9C0jnXBBZtwFuB0PAKeYNYICqelMM1yQ7/rvgd7EUKKfsZ+PVQiBFbA==}
+
+  lunar-javascript@1.7.8:
+    resolution: {integrity: sha512-T79Lq2t5zjPu7nnkuUn3xFqIMIB5LCVSn6uJXQLvgWEqUGdE4KQXqQOVBaoYsVHY/8MIwFd7ol9dJ5bP2ItXUQ==}
+
+  lunar-lite@0.2.9:
+    resolution: {integrity: sha512-yBME4vIT3nohm3yLy0M7zT/yqMNexS3OW3ds1IE4kgcx2JKPO7jOVOC9MOPiAZeyG0XRY/DFI8OkMP3Ol2CAiw==}
+
+  lunar-typescript@1.8.7:
+    resolution: {integrity: sha512-w1ZxRf+mmIqXGnk40Dl2U+qPdm2phHsoxpOEIy7BPc/+kkWZtfW98NCZvsBTYCuNXQMBanaw+u+DboXD65NrVA==}
+
+snapshots:
+
+  '@babel/runtime@7.29.14': {}
+
+  dayjs@1.11.23: {}
+
+  i18next@23.16.8:
+    dependencies:
+      '@babel/runtime': 7.29.14
+
+  iztro@2.6.5:
+    dependencies:
+      dayjs: 1.11.23
+      i18next: 23.16.8
+      lunar-lite: 0.2.9
+      lunar-typescript: 1.8.7
+
+  lunar-javascript@1.7.8: {}
+
+  lunar-lite@0.2.9:
+    dependencies:
+      lunar-typescript: 1.8.7
+
+  lunar-typescript@1.8.7: {}
