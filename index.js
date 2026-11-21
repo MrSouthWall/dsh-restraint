@@ -1,5 +1,5 @@
 /**
- * Host half of @local/dsh-zhiming (知命 · 风水玄学罗盘插件).
+ * Host half of @local/dsh-zhiming (虚白 · 风水玄学罗盘插件).
  *
  * Exposes:
  *  - Session Projection (`zhiming`, wire.view pushed live to Client UI)
@@ -342,7 +342,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const disposeChart = ctx.tools.register({
       name: 'zhiming_chart',
-      description: 'Calculate and display a Feng Shui / Chinese metaphysics chart on the ZhiMing interactive plugin UI. Call this whenever the user asks for such a reading instead of computing pillars, stars, or hexagrams yourself. Supports five systems: bazi (四柱八字), qimen (奇门遁甲), meihua (梅花易数), ziwei (紫微斗数), and hepan (双人合盘).',
+      description: 'Calculate and display a Feng Shui / Chinese metaphysics chart on the Restraint interactive plugin UI. Call this whenever the user asks for such a reading instead of computing pillars, stars, or hexagrams yourself. Supports five systems: bazi (四柱八字), qimen (奇门遁甲), meihua (梅花易数), ziwei (紫微斗数), and hepan (双人合盘).',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -452,7 +452,7 @@ export function apply(ctx) {
         render(_args, value) {
           return [{
             type: 'text',
-            text: `${value.markdown}\n\n（该盘面已实时同步到「知命罗盘」可视化界面，用户可在右侧面板中交互查看各宫位/柱位详情。）`,
+            text: `${value.markdown}\n\n（该盘面已实时同步到「虚白罗盘」可视化界面，用户可在右侧面板中交互查看各宫位/柱位详情。）`,
           }];
         },
         presentationMeta(_args, value) {
@@ -474,7 +474,7 @@ export function apply(ctx) {
 
     const disposeRead = ctx.tools.register({
       name: 'zhiming_read',
-      description: 'Read live chart data currently displayed in the ZhiMing plugin UI (including charts cast interactively by the user, the currently focused palace/pillar/hexagram, and session chart history) so you can interpret its Feng Shui meaning.',
+      description: 'Read live chart data currently displayed in the Restraint plugin UI (including charts cast interactively by the user, the currently focused palace/pillar/hexagram, and session chart history) so you can interpret its Feng Shui meaning.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -505,7 +505,7 @@ export function apply(ctx) {
             return {
               count: 0,
               charts: [],
-              text: '当前会话的「知命罗盘」插件中还没有已排好的盘面。你可以询问用户的生辰/问题并调用 `zhiming_chart` 排盘，或引导用户在右侧「知命罗盘」面板中操作。',
+              text: '当前会话的「虚白罗盘」插件中还没有已排好的盘面。你可以询问用户的生辰/问题并调用 `zhiming_chart` 排盘，或引导用户在右侧「虚白罗盘」面板中操作。',
             };
           }
           const summaryList = state.charts.map((c, i) => ({
@@ -517,7 +517,7 @@ export function apply(ctx) {
             active: c.id === state.activeChartId,
           }));
           const text = [
-            `当前会话「知命罗盘」共有 ${state.charts.length} 份盘面：`,
+            `当前会话「虚白罗盘」共有 ${state.charts.length} 份盘面：`,
             ...summaryList.map(item => `${item.index}. ${item.active ? '[当前查看] ' : ''}${item.title}（${item.subtitle}，id: ${item.id}）`),
           ].join('\n');
           return { count: state.charts.length, activeChartId: state.activeChartId, charts: summaryList, text };
@@ -531,7 +531,7 @@ export function apply(ctx) {
           return {
             found: false,
             activeSystem: state.activeSystem,
-            text: '当前「知命罗盘」插件中尚未排盘。请向用户确认想要测算的体系（八字/奇门/梅花/紫微/合盘）及必要信息，或调用 `zhiming_chart`（可设 `useDemo: true` 演示）。',
+            text: '当前「虚白罗盘」插件中尚未排盘。请向用户确认想要测算的体系（八字/奇门/梅花/紫微/合盘）及必要信息，或调用 `zhiming_chart`（可设 `useDemo: true` 演示）。',
           };
         }
 
@@ -582,7 +582,7 @@ export function apply(ctx) {
   ctx.inject(['commands'], scope => {
     scope.effect(() => scope.commands.register({
       name: 'zhiming',
-      description: '知命风水罗盘排盘与同步指令（支持 bazi / qimen / meihua / ziwei / hepan / demo）',
+      description: '虚白风水罗盘排盘与同步指令（支持 bazi / qimen / meihua / ziwei / hepan / demo）',
       input: { hint: 'bazi 1995-05-18 08:30 男 | qimen | meihua 3 7 | ziwei 1998-03-12 21:30 女 | demo bazi' },
       recordInput: false,
       handler({ agent, rawInput }) {
@@ -594,7 +594,7 @@ export function apply(ctx) {
             return {
               kind: 'success',
               text: [
-                '知命 · 风水玄学罗盘指令用法：',
+                '虚白 · 风水玄学罗盘指令用法：',
                 '• /zhiming demo bazi|qimen|meihua|ziwei|hepan — 一键加载新手演示盘',
                 '• /zhiming bazi 1995-05-18 08:30 男 — 排四柱八字',
                 '• /zhiming qimen [2026-11-20 12:00] [所问事项] — 起时家拆补奇门局',
@@ -637,7 +637,7 @@ export function apply(ctx) {
         } catch (err) {
           return {
             kind: 'error',
-            text: `知命排盘失败：${err instanceof Error ? err.message : String(err)}`,
+            text: `虚白排盘失败：${err instanceof Error ? err.message : String(err)}`,
           };
         }
       },

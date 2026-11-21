@@ -750,7 +750,7 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   const workspaceBody = slotsRegistered.find(s => s.meta.name === 'zhiming.workspace');
   assert.equal(sidebarEntry.meta.id, '@local/dsh-zhiming');
   assert.equal(sidebarEntry.meta.id, workspaceEntry.meta.key);
-  assert.equal(sidebarEntry.meta.label(), '知命罗盘');
+  assert.equal(sidebarEntry.meta.label(), '虚白罗盘');
   assert.equal(workspaceEntry.meta.children[workspaceBody.meta.name].scope, 'session-maybe');
   const emptyWorkspace = workspaceBody.meta.inject(undefined);
   assert.equal(emptyWorkspace.executeZhiming, undefined);
@@ -887,7 +887,7 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   const cmdEntry = slotsRegistered.find(s => s.meta.name === 'conversation.chat.commandview');
   renderTree(mockReact.createElement(cmdEntry.component, { ...cmdEntry.meta.inject('s1'), node: { outcome: { kind: 'success', text: 'ZHIMING_STATE:' + JSON.stringify({ op: 'chart', chart: demoCharts[0] }) } }, t: tFn }));
   renderTree(mockReact.createElement(cmdEntry.component, { ...cmdEntry.meta.inject('s1'), node: { outcome: { kind: 'success', text: 'ZHIMING_STATE:' + JSON.stringify({ op: 'focus' }) } }, t: tFn }));
-  renderTree(mockReact.createElement(cmdEntry.component, { ...cmdEntry.meta.inject('s1'), node: { outcome: { kind: 'success', text: '知命指令帮助' } }, t: tFn }));
+  renderTree(mockReact.createElement(cmdEntry.component, { ...cmdEntry.meta.inject('s1'), node: { outcome: { kind: 'success', text: '虚白指令帮助' } }, t: tFn }));
   renderTree(mockReact.createElement(cmdEntry.component, { ...cmdEntry.meta.inject('s1'), node: { outcome: { kind: 'error', text: '排盘失败' } }, t: tFn }));
 
   const titleEntry = slotsRegistered.find(s => s.meta.name === 'sidebar.right.pane.tab.title');

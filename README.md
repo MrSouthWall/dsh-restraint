@@ -1,10 +1,10 @@
-# 知命 · 风水玄学罗盘
+# 虚白 · 风水玄学罗盘
 
-知命（ZhiMing）是一个 **DeepSeek Harness（DSH）插件**，把四柱八字、奇门遁甲、梅花易数、紫微斗数和双人合盘放进同一个可交互工作台。你可以在侧栏手动排盘，也可以在聊天里让 DeepSeek 排盘，再点选柱位、宫位或卦象继续追问。
+虚白（Restraint）是一个 **DeepSeek Harness（DSH）插件**，把四柱八字、奇门遁甲、梅花易数、紫微斗数和双人合盘放进同一个可交互工作台。你可以在侧栏手动排盘，也可以在聊天里让 DeepSeek 排盘，再点选柱位、宫位或卦象继续追问。
 
-![知命罗盘和五种排盘模块的功能预览](docs/preview.svg)
+![虚白罗盘和五种排盘模块的功能预览](docs/preview.svg)
 
-ZhiMing is a DeepSeek Harness plugin for interactive Chinese metaphysics charts. Cast Bazi, Qimen Dunjia, Meihua Yishu, Ziwei Doushu, and two-person compatibility charts locally, then ask DeepSeek to explain the active chart.
+Restraint is a DeepSeek Harness plugin for interactive Chinese metaphysics charts. Cast Bazi, Qimen Dunjia, Meihua Yishu, Ziwei Doushu, and two-person compatibility charts locally, then ask DeepSeek to explain the active chart.
 
 [English quick start](#english-quick-start)
 
@@ -18,10 +18,10 @@ ZhiMing is a DeepSeek Harness plugin for interactive Chinese metaphysics charts.
 2. 粘贴以下 GitHub 仓库地址并确认安装。
 
    ```text
-   https://github.com/MrSouthWall/dsh-zhiming
+   https://github.com/MrSouthWall/dsh-restraint
    ```
 
-3. 启用插件，按界面提示重启。打开会话后，点击左侧导航栏中与 **自动化任务** 同一组的 **知命罗盘**，即可在主区域打开工作台。也可以从会话的右侧边栏打开。
+3. 启用插件，按界面提示重启。打开会话后，点击左侧导航栏中与 **自动化任务** 同一组的 **虚白罗盘**，即可在主区域打开工作台。也可以从会话的右侧边栏打开。
 
 已有本地源码时，先在仓库根目录执行 `npm install`，再在 **添加插件** 中输入包含 `package.json` 和 `cordis.patch.yml` 的目录绝对路径。
 
@@ -30,13 +30,13 @@ ZhiMing is a DeepSeek Harness plugin for interactive Chinese metaphysics charts.
 在已安装 `dsh` 和 `pnpm` 的环境中执行以下命令。若 Web 界面已运行，安装后重启该 profile。
 
 ```sh
-dsh plugin --profile web add github:MrSouthWall/dsh-zhiming
+dsh plugin --profile web add github:MrSouthWall/dsh-restraint
 dsh --profile web
 ```
 
 ## 快速上手
 
-- **先看示例**。打开 **知命罗盘 → 新手指南**，查阅白话术语和十二时辰对照表。每种盘面都可以通过 **新手演示** 加载样例。
+- **先看示例**。打开 **虚白罗盘 → 新手指南**，查阅白话术语和十二时辰对照表。每种盘面都可以通过 **新手演示** 加载样例。
 - **复用生辰资料**。点顶部的 **生辰档案** 可新建、编辑和删除档案，也可以在排盘表单里点 **保存为档案**。四柱八字、紫微斗数和双人合盘都能用 **从档案填入**，合盘双方可各选一人。档案保存在当前浏览器或桌面客户端，可跨会话使用。
 - **用对话排盘**。在聊天中发送「请用梅花易数，按数字 3 和 7 起卦，并说明本卦、互卦和变卦各代表什么」。DeepSeek 调用 `zhiming_chart` 后，结果会同步到工作台。
 - **从盘面追问**。在工作台排盘后，点击 **D老师解读** 发起整盘解读。也可先选中柱位、宫位或卦象，再点击同名按钮追问。DeepSeek 通过 `zhiming_read` 读取当前会话的盘面。
@@ -87,11 +87,11 @@ node --test tests/engine.test.mjs
 - [lib/engine](lib/engine) 包含五种排盘引擎。八字历法使用 [lunar-javascript](https://github.com/6tail/lunar-javascript)，紫微斗数使用 [iztro](https://github.com/SylarLong/iztro)。
 - [package.json](package.json) 和 [cordis.patch.yml](cordis.patch.yml) 声明 DSH bundle 的入口与加载方式。
 
-遇到安装或排盘问题时，可在 GitHub 提交问题并附上 DSH 版本、插件版本和复现步骤。复现时可使用演示数据。[GitHub Issues](https://github.com/MrSouthWall/dsh-zhiming/issues)
+遇到安装或排盘问题时，可在 GitHub 提交问题并附上 DSH 版本、插件版本和复现步骤。复现时可使用演示数据。[GitHub Issues](https://github.com/MrSouthWall/dsh-restraint/issues)
 
 ## English quick start
 
-1. Open **Plugins → Add plugin** in DeepSeek Harness Desktop and enter `https://github.com/MrSouthWall/dsh-zhiming`.
-2. Enable the plugin, open a conversation, and click **ZhiMing studio** in the left navigation to open it in the main area. You can also open it from the conversation's right sidebar.
+1. Open **Plugins → Add plugin** in DeepSeek Harness Desktop and enter `https://github.com/MrSouthWall/dsh-restraint`.
+2. Enable the plugin, open a conversation, and click **Restraint studio** in the left navigation to open it in the main area. You can also open it from the conversation's right sidebar.
 3. Try `/zhiming demo bazi` to open a sample chart. Use **D老师解读** to discuss the current chart with DeepSeek.
 4. Open **Birth profiles** to manage saved people. Use **Fill from profile** in Four Pillars, Ziwei, or either side of a synastry chart.

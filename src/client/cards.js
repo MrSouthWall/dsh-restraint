@@ -184,7 +184,7 @@ function createCompanionCards(React, Visuals) {
       setSending(true);
       setErrMsg('');
       try {
-        const res = await props.sendPrompt(`请读取我在知命罗盘刚排好的「${chart.title}」（盘面ID: ${chart.id}），用新手白话为我解读它的风水含义与建议。`);
+        const res = await props.sendPrompt(`请读取我在虚白罗盘刚排好的「${chart.title}」（盘面ID: ${chart.id}），用新手白话为我解读它的风水含义与建议。`);
         if (res?.ok === false) setErrMsg(res.error || t('status.syncError'));
       } catch (e) {
         setErrMsg(e?.message || t('status.syncError'));

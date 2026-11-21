@@ -1,5 +1,5 @@
 /**
- * Browser client module for @local/dsh-zhiming (知命 · 风水玄学罗盘插件).
+ * Browser client module for @local/dsh-zhiming (虚白 · 风水玄学罗盘插件).
  * Generated from src/client/*.js via scripts/build-client.mjs.
  * Zero external runtime imports beyond browser-provided React.
  */
@@ -213,14 +213,14 @@ window.__ModuleLoader__.load({
     // --- src/client/locales.js ---
     const ZH_DICT = {
       'lang.code': 'zh',
-      'brand.title': '知命 · 风水玄学罗盘',
-      'brand.short': '知命罗盘',
+      'brand.title': '虚白 · 风水玄学罗盘',
+      'brand.short': '虚白罗盘',
       'brand.subtitle': '四柱八字 · 奇门遁甲 · 梅花易数 · 紫微斗数 · 双人合盘',
-      'tab.title': '知命罗盘',
+      'tab.title': '虚白罗盘',
       'workspace.noSession': '新建或选择一个会话，即可排盘并保存记录。',
       'workspace.openConversation': '打开会话',
       'workspace.returnToConversation': '返回会话',
-      'guide.title': '知命 · 风水玄学罗盘',
+      'guide.title': '虚白 · 风水玄学罗盘',
       'guide.description': '四柱八字、奇门遁甲、梅花易数、紫微斗数与合盘可视化工作台，支持与 DeepSeek 双向对话排盘与解读。',
       'nav.tutorial': '新手指南',
       'nav.bazi': '四柱八字',
@@ -234,7 +234,7 @@ window.__ModuleLoader__.load({
       'action.castHepan': '开始合盘',
       'action.demo': '新手演示',
       'action.askDeepSeek': 'D老师解读',
-      'action.openStudio': '在知命罗盘中展开',
+      'action.openStudio': '在虚白罗盘中展开',
       'action.editInput': '修改参数 / 重新排盘',
       'action.hideInput': '收起参数表单',
       'action.beginnerOn': '白话提示：开',
@@ -251,15 +251,15 @@ window.__ModuleLoader__.load({
       'status.cmdMissing': '未检测到 /zhiming 宿主指令，请确认插件已启用并重启 DSH',
       'status.noCommandChannel': '当前会话暂不支持命令执行通道',
       'status.noPromptChannel': '未找到当前会话发送通道，请直接在左侧输入框向 DeepSeek 提问',
-      'tool.charting': '知命罗盘正在排盘计算...',
-      'tool.chartError': '知命排盘未成功',
-      'tool.reading': 'DeepSeek 正在读取知命罗盘当前盘面...',
-      'tool.readDone': 'DeepSeek 已读取知命罗盘数据，正在为你解读',
-      'tool.readError': '读取知命罗盘数据失败',
-      'cmd.synced': '已在知命罗盘排盘并同步给 DeepSeek',
-      'cmd.focused': '已同步知命罗盘当前查看焦点',
+      'tool.charting': '虚白罗盘正在排盘计算...',
+      'tool.chartError': '虚白排盘未成功',
+      'tool.reading': 'DeepSeek 正在读取虚白罗盘当前盘面...',
+      'tool.readDone': 'DeepSeek 已读取虚白罗盘数据，正在为你解读',
+      'tool.readError': '读取虚白罗盘数据失败',
+      'cmd.synced': '已在虚白罗盘排盘并同步给 DeepSeek',
+      'cmd.focused': '已同步虚白罗盘当前查看焦点',
       'cmd.cleared': '已清空本次会话盘面记录',
-      'cmd.help': '知命指令帮助',
+      'cmd.help': '虚白指令帮助',
       'form.birthDate': '出生日期',
       'form.birthTime': '出生时间',
       'form.gender': '性别',
@@ -340,20 +340,20 @@ window.__ModuleLoader__.load({
       'empty.hepanTitle': '尚未生成双人合盘报告',
       'empty.hepanDesc': '支持恋爱婚姻、事业合伙、挚友亲子三种合盘模式，查看双方六项盘面关系与大运日期。',
       'glossary.empty': '词典暂未收录',
-      'error.boundary': '知命视图渲染遇到异常，请点击重置恢复。',
+      'error.boundary': '虚白视图渲染遇到异常，请点击重置恢复。',
       'error.reset': '重新加载视图',
     };
 
     const EN_DICT = {
       'lang.code': 'en',
-      'brand.title': 'ZhiMing · Feng Shui studio',
-      'brand.short': 'ZhiMing',
+      'brand.title': 'Restraint · Feng Shui studio',
+      'brand.short': 'Restraint',
       'brand.subtitle': 'Bazi · Qimen Dunjia · Meihua Yishu · Ziwei Doushu · Synastry',
-      'tab.title': 'ZhiMing studio',
+      'tab.title': 'Restraint studio',
       'workspace.noSession': 'Start or select a conversation to cast charts and save your history.',
       'workspace.openConversation': 'Open conversation',
       'workspace.returnToConversation': 'Back to conversation',
-      'guide.title': 'ZhiMing Feng Shui studio',
+      'guide.title': 'Restraint Feng Shui studio',
       'guide.description': 'Interactive Bazi, Qimen Dunjia, Meihua Yishu, Ziwei Doushu, and synastry studio with bidirectional DeepSeek chat integration.',
       'nav.tutorial': 'Beginner guide',
       'nav.bazi': 'Four pillars',
@@ -367,7 +367,7 @@ window.__ModuleLoader__.load({
       'action.castHepan': 'Run synastry',
       'action.demo': 'Load demo',
       'action.askDeepSeek': 'D老师解读',
-      'action.openStudio': 'Open in ZhiMing studio',
+      'action.openStudio': 'Open in Restraint studio',
       'action.editInput': 'Edit parameters / Recast',
       'action.hideInput': 'Hide form',
       'action.beginnerOn': 'Beginner tips: on',
@@ -384,15 +384,15 @@ window.__ModuleLoader__.load({
       'status.cmdMissing': 'Host /zhiming command was not found. Enable the plugin and restart DSH if updated.',
       'status.noCommandChannel': 'This session does not expose a command execution channel.',
       'status.noPromptChannel': 'Session prompt channel unavailable. Ask DeepSeek directly in the chat box.',
-      'tool.charting': 'ZhiMing studio is calculating the chart...',
+      'tool.charting': 'Restraint studio is calculating the chart...',
       'tool.chartError': 'Chart calculation failed',
-      'tool.reading': 'DeepSeek is reading the active chart from ZhiMing studio...',
-      'tool.readDone': 'DeepSeek read your active ZhiMing chart data',
-      'tool.readError': 'Failed to read ZhiMing chart data',
-      'cmd.synced': 'Chart cast in ZhiMing studio and synced for DeepSeek',
-      'cmd.focused': 'Synced active focus in ZhiMing studio',
+      'tool.reading': 'DeepSeek is reading the active chart from Restraint studio...',
+      'tool.readDone': 'DeepSeek read your active Restraint chart data',
+      'tool.readError': 'Failed to read Restraint chart data',
+      'cmd.synced': 'Chart cast in Restraint studio and synced for DeepSeek',
+      'cmd.focused': 'Synced active focus in Restraint studio',
       'cmd.cleared': 'Cleared session chart history',
-      'cmd.help': 'ZhiMing command help',
+      'cmd.help': 'Restraint command help',
       'form.birthDate': 'Birth date',
       'form.birthTime': 'Birth time',
       'form.gender': 'Gender',
@@ -473,7 +473,7 @@ window.__ModuleLoader__.load({
       'empty.hepanTitle': 'No synastry report yet',
       'empty.hepanDesc': 'Compare two birth charts across 6 dimensions for love, business, or family harmony.',
       'glossary.empty': 'Not found in the glossary',
-      'error.boundary': 'ZhiMing view encountered an error. Reset to recover.',
+      'error.boundary': 'Restraint view encountered an error. Reset to recover.',
       'error.reset': 'Reset view',
     };
 
@@ -637,7 +637,7 @@ window.__ModuleLoader__.load({
     // --- src/client/styles.js ---
     const ZHIMING_CSS = `
     /* =========================================================================
-       ZhiMing Dual-Theme Cohesive Design System
+       Restraint Dual-Theme Cohesive Design System
        - Light Mode (data-zm-theme="light"): Imperial Xuan-Paper & Bronze Gold
        - Dark Mode  (data-zm-theme="dark") : Obsidian Starfield & Celestial Gold
        ========================================================================= */
@@ -3079,7 +3079,7 @@ window.__ModuleLoader__.load({
         render() {
           if (this.state.hasError) {
             return h('div', { className: 'zm-card', style: { margin: 8 } },
-              h('div', { style: { fontWeight: 600, marginBottom: 6 } }, this.props.fallbackText || '知命视图渲染异常'),
+              h('div', { style: { fontWeight: 600, marginBottom: 6 } }, this.props.fallbackText || '虚白视图渲染异常'),
               h('div', { className: 'zm-muted', style: { marginBottom: 8 } }, this.state.message),
               h('button', {
                 type: 'button',
@@ -6717,7 +6717,7 @@ window.__ModuleLoader__.load({
           setSending(true);
           setErrMsg('');
           try {
-            const res = await props.sendPrompt(`请读取我在知命罗盘刚排好的「${chart.title}」（盘面ID: ${chart.id}），用新手白话为我解读它的风水含义与建议。`);
+            const res = await props.sendPrompt(`请读取我在虚白罗盘刚排好的「${chart.title}」（盘面ID: ${chart.id}），用新手白话为我解读它的风水含义与建议。`);
             if (res?.ok === false) setErrMsg(res.error || t('status.syncError'));
           } catch (e) {
             setErrMsg(e?.message || t('status.syncError'));

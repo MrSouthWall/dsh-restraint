@@ -12,7 +12,7 @@ function createVisuals(React) {
     render() {
       if (this.state.hasError) {
         return h('div', { className: 'zm-card', style: { margin: 8 } },
-          h('div', { style: { fontWeight: 600, marginBottom: 6 } }, this.props.fallbackText || '知命视图渲染异常'),
+          h('div', { style: { fontWeight: 600, marginBottom: 6 } }, this.props.fallbackText || '虚白视图渲染异常'),
           h('div', { className: 'zm-muted', style: { marginBottom: 8 } }, this.state.message),
           h('button', {
             type: 'button',

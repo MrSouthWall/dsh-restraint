@@ -47,7 +47,7 @@ const lunarMonthDays = Array.from({ length: 199 }, (_, index) => {
 }).join('\n');
 
 const output = `/**
- * Browser client module for @local/dsh-zhiming (知命 · 风水玄学罗盘插件).
+ * Browser client module for @local/dsh-zhiming (虚白 · 风水玄学罗盘插件).
  * Generated from src/client/*.js via scripts/build-client.mjs.
  * Zero external runtime imports beyond browser-provided React.
  */

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "ZhiMing Feng Shui & Chinese metaphysics studio for DeepSeek Harness (Bazi, Qimen Dunjia, Meihua Yishu, Ziwei Doushu, Hepan).",
+  "description": "Restraint Feng Shui & Chinese metaphysics studio for DeepSeek Harness (Bazi, Qimen Dunjia, Meihua Yishu, Ziwei Doushu, Hepan).",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",

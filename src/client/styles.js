@@ -1,6 +1,6 @@
 const ZHIMING_CSS = `
 /* =========================================================================
-   ZhiMing Dual-Theme Cohesive Design System
+   Restraint Dual-Theme Cohesive Design System
    - Light Mode (data-zm-theme="light"): Imperial Xuan-Paper & Bronze Gold
    - Dark Mode  (data-zm-theme="dark") : Obsidian Starfield & Celestial Gold
    ========================================================================= */
