@@ -17,11 +17,7 @@ import {
   DEMO_PRESETS,
 } from './lib/engine/index.js';
 import { withBaziAnalysis } from './lib/engine/bazi.js';
-import {
-  ZHIMING_GUIDANCE,
-  batchMentionsZhimingTopic,
-  guidanceForSession,
-} from './lib/guidance.js';
+import { batchMentionsZhimingTopic, guidanceForSession } from './lib/guidance.js';
 
 export const inject = ['tools'];
 
@@ -279,28 +275,74 @@ export function apply(ctx) {
     });
   });
 
-  // 2. Register System Prompt guidance for DeepSeek
-  ctx.inject(['systemPrompt'], scope => {
-    scope.effect(() => scope.systemPrompt.section({
-      name: 'dsh-zhiming',
-      order: 65,
-      interpolate: false,
-      text: [
-        '## 知命 · 风水玄学罗盘插件（ZhiMing Studio）',
-        '你已接入「知命」可视化风水玄学插件，支持五种体系：四柱八字（bazi）、奇门遁甲（qimen）、梅花易数（meihua）、紫微斗数（ziwei）、双人合盘（hepan）。',
-        '- 当用户要求排盘、起卦、合盘或查看上述任一体系时，务必调用 `zhiming_chart` 工具将准确结果同步呈现在插件罗盘界面上，切勿手算干支星曜。若用户未提供出生日期而要求排八字/紫微/合盘，先礼貌询问或征得同意后用 `useDemo: true` 演示。',
-        '- 当用户要求解读插件中的盘面或某个具体宫位/柱位/卦象时，务必先调用 `zhiming_read` 读取真实数据（若消息中带有盘面 ID，使用 `action: "by_id"` 精准定位；若不确定看哪份盘，先用 `action: "list"` 或 `action: "current"`）。',
-        '- 核对或重排出生盘时，以用户最新确认的时间为准，也可引用盘面明确标注的「出生时间（北京时间 UTC+8）」。另行说明「排盘真太阳时」的换算。历史合盘若仅记录排盘时刻，先向用户确认原始出生时间。',
-        '- 解读时引用实际宫位、干支或卦辞，并说明传统取法。对于合盘分数、具体应期与现实结果，只有可追溯的资料才可作为依据。若盘面标记为旧版，先请用户提供原始资料重排。',
-      ].join('\n'),
-    }));
+  // 2. Register contextual System Prompt guidance (per agent, empty unless that session is metaphysics-related)
+  //
+  // The guidance used to be one global section, which put "你已接入算命插件" into the persona area of
+  // EVERY conversation, including new ones about unrelated work. It is now scoped to each agent and
+  // its text is evaluated at every assembly: an unrelated session contributes nothing at all.
+  const armedSessions = new WeakSet();
+  const promptFibers = new Map();
+
+  const disposePrompt = agent => {
+    const fiber = promptFibers.get(agent);
+    if (!fiber) return;
+    promptFibers.delete(agent);
+    try {
+      void Promise.resolve(fiber.dispose()).catch(err => {
+        console.warn?.('dsh-zhiming: failed to dispose prompt section', err);
+      });
+    } catch (err) {
+      console.warn?.('dsh-zhiming: failed to dispose prompt section', err);
+    }
+  };
+
+  const installPrompt = agent => {
+    if (!agent || promptFibers.has(agent)) return;
+    try {
+      const fiber = agent.ctx.inject(['systemPrompt'], scope => scope.systemPrompt.section({
+        name: 'dsh-zhiming',
+        // Tool-capability guidance, not persona: stay after the harness tool sections.
+        order: 3010,
+        interpolate: false,
+        text: () => guidanceForSession({
+          hasChart: readStateForSession(agent.session).charts.length > 0,
+          armed: Boolean(agent.session) && armedSessions.has(agent.session),
+        }),
+      }));
+      promptFibers.set(agent, fiber);
+    } catch (err) {
+      console.warn?.('dsh-zhiming: failed to install prompt section', err);
+    }
+  };
+
+  // Arm a session for the following steps as soon as its human input mentions the subject.
+  // Assembly runs before `agent/pre-step` for the same step, so the first willing step after
+  // the mention already carries the guidance; a cast chart arms the session from the log.
+  ctx.effect(() => ctx.on('agent/pre-step', (payload, next) => {
+    try {
+      const session = payload?.agent?.session;
+      if (session && batchMentionsZhimingTopic(payload?.messages)) armedSessions.add(session);
+    } catch {
+      // Never break a step because of guidance bookkeeping.
+    }
+    return next();
+  }));
+
+  ctx.effect(() => ctx.on('agent/created', ({ agent }) => { installPrompt(agent); }));
+  ctx.effect(() => ctx.on('agent/disposed', ({ agent }) => { disposePrompt(agent); }));
+  ctx.inject(['agents'], scope => {
+    for (const agent of scope.agents.list()) installPrompt(agent);
+  });
+  ctx.effect(() => () => {
+    const pending = [...promptFibers.keys()];
+    for (const agent of pending) disposePrompt(agent);
   });
 
   // 3. Register Agent Tools (DeepSeek <-> Plugin bidirectional bridge)
   ctx.effect(() => {
     const disposeChart = ctx.tools.register({
       name: 'zhiming_chart',
-      description: 'Calculate and display a Feng Shui / Chinese metaphysics chart on the ZhiMing interactive plugin UI. Supports five systems: bazi (四柱八字), qimen (奇门遁甲), meihua (梅花易数), ziwei (紫微斗数), and hepan (双人合盘).',
+      description: 'Calculate and display a Feng Shui / Chinese metaphysics chart on the ZhiMing interactive plugin UI. Call this whenever the user asks for such a reading instead of computing pillars, stars, or hexagrams yourself. Supports five systems: bazi (四柱八字), qimen (奇门遁甲), meihua (梅花易数), ziwei (紫微斗数), and hepan (双人合盘).',
       parameters: {
         type: 'object',
         additionalProperties: false,

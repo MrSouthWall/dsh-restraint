@@ -7,6 +7,11 @@ import vm from 'node:vm';
 
 import { castChart, lookupTutorial, formatChartForModel, DEMO_PRESETS } from '../lib/engine/index.js';
 import { HEXAGRAMS_BY_KEY, HEXAGRAMS_BY_NUMBER } from '../lib/data/hexagrams.js';
+import {
+  batchMentionsZhimingTopic,
+  guidanceForSession,
+  mentionsZhimingTopic,
+} from '../lib/guidance.js';
 import { apply as applyHost, inject as hostInject, zhimingProjectionDefinition } from '../index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -310,6 +315,43 @@ test('old results are marked and comparison starts at actual Yun dates', t => {
   assert.match(formatChartForModel({ ...h, rulesVersion: undefined }), /原始输入重排/);
 });
 
+test('Prompt guidance stays out of unrelated conversations', () => {
+  const human = text => ({ source: { kind: 'user' }, content: [{ type: 'text', text }] });
+
+  // Unrelated topics must not trip the metaphysics context.
+  for (const text of [
+    '帮我写一段 Canvas 绘画动画的代码，再顺手看下 git 状态',
+    '把这份 Excel 里的销售数据做个透视表',
+    '解释一下 React 的 useEffect 依赖数组',
+    '帮我写一篇关于城市夜色的散文',
+  ]) {
+    assert.equal(mentionsZhimingTopic(human(text)), false, `unexpected match: ${text}`);
+  }
+
+  // Real requests, in Chinese and English, must trip it.
+  for (const text of [
+    '帮我排一下 1995-05-18 08:30 男命的四柱八字',
+    '用奇门遁甲起个时家拆补局',
+    '我报数 3 和 7，帮我梅花起卦',
+    '看看我的紫微斗数命盘',
+    '帮我们做个恋爱合盘',
+    'cast a bazi chart for me',
+  ]) {
+    assert.equal(mentionsZhimingTopic(human(text)), true, `missed match: ${text}`);
+  }
+
+  // Synthetic contexts never count as the user's own intent.
+  assert.equal(mentionsZhimingTopic({ source: { kind: 'runtime-context' }, content: [{ type: 'text', text: '八字资料' }] }), false);
+  assert.equal(batchMentionsZhimingTopic([]), false);
+  assert.equal(batchMentionsZhimingTopic(undefined), false);
+  assert.equal(batchMentionsZhimingTopic([human('写个测试'), human('帮我排紫微斗数')]), true);
+
+  // The contribution is empty unless the session is already in a metaphysics context.
+  assert.equal(guidanceForSession({ hasChart: false, armed: false }), '');
+  assert.ok(guidanceForSession({ hasChart: true, armed: false }).includes('zhiming_chart'));
+  assert.ok(guidanceForSession({ hasChart: false, armed: true }).includes('zhiming_chart'));
+});
+
 test('Host plugin registers DSH-compliant tools, command, prompt section, and bidirectional projection', async () => {
   assert.deepEqual(hostInject, ['tools']);
 
@@ -321,6 +363,35 @@ test('Host plugin registers DSH-compliant tools, command, prompt section, and bi
 
   const session = { id: 'session-test-1', events: [] };
   const projectionStateBySession = new Map();
+  const listeners = new Map();
+  const agents = [];
+
+  const emit = (name, payload) => {
+    const handler = listeners.get(name);
+    assert.ok(handler, `plugin did not listen for ${name}`);
+    return handler(payload, () => Promise.resolve({ kind: 'enter' }));
+  };
+
+  // Agent-shaped stub: `agent.ctx.inject(['systemPrompt'], cb)` mirrors the real fiber semantics
+  // so a disposed fiber removes its section again.
+  const makeAgent = sessionStub => {
+    const agent = { session: sessionStub };
+    agent.ctx = {
+      inject(_deps, cb) {
+        let dispose = () => {};
+        cb({
+          systemPrompt: {
+            section(sec) {
+              dispose = mockCtx.systemPrompt.section(sec);
+              return dispose;
+            },
+          },
+        });
+        return { async dispose() { dispose(); } };
+      },
+    };
+    return agent;
+  };
 
   const mockCtx = {
     logger: { warn() {}, error() {} },
@@ -328,6 +399,13 @@ test('Host plugin registers DSH-compliant tools, command, prompt section, and bi
       const d = fn();
       if (typeof d === 'function') disposers.push(d);
       return () => { if (typeof d === 'function') d(); };
+    },
+    on(name, handler) {
+      listeners.set(name, handler);
+      return () => listeners.delete(name);
+    },
+    agents: {
+      list() { return agents; },
     },
     inject(_deps, cb) {
       cb(mockCtx);
@@ -377,8 +455,51 @@ test('Host plugin registers DSH-compliant tools, command, prompt section, and bi
   assert.ok(registeredTools.has('zhiming_read'));
   assert.ok(registeredTools.has('zhiming_tutorial'));
   assert.ok(registeredCommands.has('zhiming'));
-  assert.equal(registeredSections.length, 1);
   assert.ok(registeredProjections.has('zhiming'));
+  // No global prompt section: a brand-new, unrelated conversation must see nothing about this plugin.
+  assert.equal(registeredSections.length, 0);
+
+  // A new agent gets a scoped section whose text is empty until the session actually needs it.
+  const agent = makeAgent(session);
+  await emit('agent/created', { agent });
+  assert.equal(registeredSections.length, 1);
+  const section = registeredSections[0];
+  assert.equal(section.name, 'dsh-zhiming');
+  assert.equal(section.order, 3010);
+  assert.equal(section.interpolate, false);
+  assert.equal(section.text(), '');
+
+  // An unrelated conversation stays out of the metaphysics context, including synthetic contexts.
+  const unrelatedAgent = makeAgent({ id: 'session-test-unrelated', events: [] });
+  await emit('agent/created', { agent: unrelatedAgent });
+  assert.equal(registeredSections.length, 2);
+  const unrelatedSection = registeredSections[1];
+  await emit('agent/pre-step', {
+    agent: unrelatedAgent,
+    messages: [{ id: 'u1', source: { kind: 'user' }, content: [{ type: 'text', text: '帮我写一段 Canvas 绘画动画的代码，再顺手看下 git 状态' }] }],
+  });
+  assert.equal(unrelatedSection.text(), '');
+  await emit('agent/pre-step', {
+    agent: unrelatedAgent,
+    messages: [{ id: 'u2', source: { kind: 'runtime-context' }, content: [{ type: 'text', text: '（背景资料：某份八字排盘说明）' }] }],
+  });
+  assert.equal(unrelatedSection.text(), '');
+  await emit('agent/disposed', { agent: unrelatedAgent });
+  await Promise.resolve();
+  assert.equal(registeredSections.length, 1);
+  assert.ok(Object.is(registeredSections[0], section));
+
+  // A real chart request arms the session, and from then on the guidance is present and guarded.
+  await emit('agent/pre-step', {
+    agent,
+    messages: [{ id: 'u3', source: { kind: 'user' }, content: [{ type: 'text', text: '帮我排一下 1995-05-18 08:30 男命的四柱八字' }] }],
+  });
+  const armedText = section.text();
+  assert.ok(armedText.includes('仅在命理语境下使用'));
+  assert.ok(armedText.includes('`zhiming_chart`'));
+  assert.ok(armedText.includes('`zhiming_read`'));
+  assert.ok(!armedText.includes('你已接入'));
+  assert.ok(!armedText.includes('风水玄学罗盘插件'));
 
   // Validate tool schemas strictly follow DSH's enforced JSON Schema keyword subset
   const allowedKeywords = new Set([
@@ -419,6 +540,9 @@ test('Host plugin registers DSH-compliant tools, command, prompt section, and bi
   projectionStateBySession.set(session, state);
   assert.equal(state.activeChartId, chartVal.chart.id);
   assert.equal(state.charts.length, 1);
+
+  // A cast chart is a durable activation signal: the session keeps its guidance from the log alone.
+  assert.ok(section.text().includes('zhiming_chart'));
 
   // Verify wire viewSchema validates cleanly
   const wireVal = projDef.wire.viewSchema.parse(projDef.wire.view(state));
