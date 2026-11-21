@@ -305,7 +305,7 @@ export function apply(ctx) {
         order: 3010,
         interpolate: false,
         text: () => guidanceForSession({
-          hasChart: readStateForSession(agent.session).charts.length > 0,
+          hasChart: (readStateForSession(agent.session)?.charts?.length ?? 0) > 0,
           armed: Boolean(agent.session) && armedSessions.has(agent.session),
         }),
       }));
