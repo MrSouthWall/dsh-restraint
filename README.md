@@ -23,7 +23,7 @@ Restraint is a DeepSeek Harness plugin for interactive Chinese metaphysics chart
 
 3. 启用插件，按界面提示重启。打开会话后，点击左侧导航栏中与 **自动化任务** 同一组的 **虚白罗盘**，即可在主区域打开工作台。也可以从会话的右侧边栏打开。
 
-已有本地源码时，先在仓库根目录执行 `npm install`，再在 **添加插件** 中输入包含 `package.json` 和 `cordis.patch.yml` 的目录绝对路径。
+从本地目录安装时，在 **添加插件** 中输入包含 `package.json` 和 `cordis.patch.yml` 的仓库根目录绝对路径。仓库已随附排盘依赖，可以直接启用。
 
 ### Web 命令行
 
@@ -74,17 +74,18 @@ dsh --profile web
 
 ## 开发
 
-在仓库根目录安装依赖、组装 Web 客户端并运行测试。
+在仓库根目录使用锁定版本的依赖构建排盘库和 Web 客户端，然后运行测试。
 
 ```sh
-npm install
-node scripts/build-client.mjs
-node --test tests/engine.test.mjs
+pnpm install --frozen-lockfile
+pnpm run build
+pnpm test
 ```
 
 - [index.js](index.js) 注册会话投影、`/zhiming` 指令和 DeepSeek 工具。
 - [src/client](src/client) 提供侧栏工作台、对话卡片与可视化界面，构建产物为 `client.js`。
 - [lib/engine](lib/engine) 包含五种排盘引擎。八字历法使用 [lunar-javascript](https://github.com/6tail/lunar-javascript)，紫微斗数使用 [iztro](https://github.com/SylarLong/iztro)。
+- 更新排盘依赖时，请将重新生成的 `lib/vendor/` 和 `client.js` 一起提交，供 DSH 直接加载。
 - [package.json](package.json) 和 [cordis.patch.yml](cordis.patch.yml) 声明 DSH bundle 的入口与加载方式。
 
 遇到安装或排盘问题时，可在 GitHub 提交问题并附上 DSH 版本、插件版本和复现步骤。复现时可使用演示数据。[GitHub Issues](https://github.com/MrSouthWall/dsh-restraint/issues)
