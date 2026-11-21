@@ -5,7 +5,8 @@
  *  - Session Projection (`zhiming`, wire.view pushed live to Client UI)
  *  - Agent Tools: `zhiming_chart`, `zhiming_read`, `zhiming_tutorial`
  *  - Slash Command: `/zhiming` (shared Host entrypoint for Client UI & human CLI/chat commands)
- *  - System Prompt Section: guides DeepSeek on bidirectional chart rendering & beginner-friendly readings
+ *  - Contextual System Prompt Section: scoped per agent and only materialized once that
+ *    session shows a metaphysics intent, so unrelated conversations never see it
  */
 
 import {
@@ -15,6 +16,12 @@ import {
   VALID_SYSTEMS,
   DEMO_PRESETS,
 } from './lib/engine/index.js';
+import { withBaziAnalysis } from './lib/engine/bazi.js';
+import {
+  ZHIMING_GUIDANCE,
+  batchMentionsZhimingTopic,
+  guidanceForSession,
+} from './lib/guidance.js';
 
 export const inject = ['tools'];
 
@@ -135,7 +142,7 @@ export const zhimingProjectionDefinition = {
   wire: {
     viewSchema,
     view(state) {
-      return state;
+      return { ...state, charts: state.charts.map(withBaziAnalysis) };
     },
     summary: false,
   },
@@ -171,19 +178,20 @@ function parseHumanSlashArgs(rawInput) {
       params: {
         system: head,
         date: parts[1],
-        time: parts[2] || '12:00',
-        gender: parts[3] || 'male',
+        time: parts[2],
+        gender: parts[3],
         question: parts.slice(4).join(' '),
       },
     };
   }
   if (head === 'qimen') {
+    const date = parts[1] && /^\d{4}-/.test(parts[1]) ? parts[1] : undefined;
     return {
       op: 'cast',
       params: {
         system: 'qimen',
-        date: parts[1] && /^\d{4}-\d{1,2}-\d{1,2}$/.test(parts[1]) ? parts[1] : undefined,
-        time: parts[2] && /^\d{1,2}:\d{1,2}$/.test(parts[2]) ? parts[2] : undefined,
+        date,
+        time: date ? parts[2] : undefined,
         question: parts[1] && !/^\d{4}-/.test(parts[1]) ? parts.slice(1).join(' ') : parts.slice(3).join(' '),
       },
     };
@@ -282,7 +290,8 @@ export function apply(ctx) {
         '你已接入「知命」可视化风水玄学插件，支持五种体系：四柱八字（bazi）、奇门遁甲（qimen）、梅花易数（meihua）、紫微斗数（ziwei）、双人合盘（hepan）。',
         '- 当用户要求排盘、起卦、合盘或查看上述任一体系时，务必调用 `zhiming_chart` 工具将准确结果同步呈现在插件罗盘界面上，切勿手算干支星曜。若用户未提供出生日期而要求排八字/紫微/合盘，先礼貌询问或征得同意后用 `useDemo: true` 演示。',
         '- 当用户要求解读插件中的盘面或某个具体宫位/柱位/卦象时，务必先调用 `zhiming_read` 读取真实数据（若消息中带有盘面 ID，使用 `action: "by_id"` 精准定位；若不确定看哪份盘，先用 `action: "list"` 或 `action: "current"`）。',
-        '- 默认用户为新手：解读时先给清晰总论，再拆解关键符号并用通俗白话解释专业术语（如喜用神、值符、体用、三方四正、四化），最后给出务实、积极的行动或家居风水建议；以传统文化与自我探索视角交流，避免宿命论恐吓。',
+        '- 核对或重排出生盘时，以用户最新确认的时间为准，也可引用盘面明确标注的「出生时间（北京时间 UTC+8）」。另行说明「排盘真太阳时」的换算。历史合盘若仅记录排盘时刻，先向用户确认原始出生时间。',
+        '- 解读时引用实际宫位、干支或卦辞，并说明传统取法。对于合盘分数、具体应期与现实结果，只有可追溯的资料才可作为依据。若盘面标记为旧版，先请用户提供原始资料重排。',
       ].join('\n'),
     }));
   });
@@ -312,16 +321,16 @@ export function apply(ctx) {
           },
           date: {
             type: 'string',
-            description: 'Date in YYYY-MM-DD format (defaults to current date for qimen/meihua).',
+            description: 'Date in YYYY-MM-DD. Required for birth charts. Qimen and Meihua default to the current Beijing date.',
           },
           time: {
             type: 'string',
-            description: 'Time in HH:MM 24-hour format (defaults to current time).',
+            description: 'Beijing time (UTC+8), HH:MM or HH:MM:SS. Required for birth charts. Otherwise defaults to the current Beijing time.',
           },
           gender: {
             type: 'string',
             enum: ['male', 'female', '男', '女'],
-            description: 'Gender for bazi/ziwei (male/男 or female/女).',
+            description: 'Required for Bazi and Ziwei chart rules (male/男 or female/女).',
           },
           calendar: {
             type: 'string',
@@ -334,7 +343,7 @@ export function apply(ctx) {
           },
           longitude: {
             type: 'number',
-            description: 'Optional birthplace east longitude in degrees (e.g. 116.4) for True Solar Time adjustment.',
+            description: 'Optional signed longitude from −180 to 180, positive east. Converts the UTC+8 input to local apparent solar time.',
           },
           question: {
             type: 'string',
@@ -373,9 +382,11 @@ export function apply(ctx) {
             properties: {
               name: { type: 'string', description: 'Display name or role.' },
               date: { type: 'string', description: 'YYYY-MM-DD' },
-              time: { type: 'string', description: 'HH:MM' },
+              time: { type: 'string', description: 'Required Beijing time, HH:MM or HH:MM:SS' },
               gender: { type: 'string', enum: ['male', 'female', '男', '女'] },
               calendar: { type: 'string', enum: ['solar', 'lunar'] },
+              isLeapMonth: { type: 'boolean', description: 'True for a leap month when calendar is lunar.' },
+              longitude: { type: 'number', description: 'Optional longitude in degrees from −180 to 180, east positive.' },
             },
           },
           personB: {
@@ -385,9 +396,11 @@ export function apply(ctx) {
             properties: {
               name: { type: 'string', description: 'Display name or role.' },
               date: { type: 'string', description: 'YYYY-MM-DD' },
-              time: { type: 'string', description: 'HH:MM' },
+              time: { type: 'string', description: 'Required Beijing time, HH:MM or HH:MM:SS' },
               gender: { type: 'string', enum: ['male', 'female', '男', '女'] },
               calendar: { type: 'string', enum: ['solar', 'lunar'] },
+              isLeapMonth: { type: 'boolean', description: 'True for a leap month when calendar is lunar.' },
+              longitude: { type: 'number', description: 'Optional longitude in degrees from −180 to 180, east positive.' },
             },
           },
         },
@@ -458,7 +471,7 @@ export function apply(ctx) {
             id: c.id,
             system: c.system,
             title: c.title,
-            subtitle: c.subtitle,
+            subtitle: c.rulesVersion ? c.subtitle : '旧版盘面，需用原始资料重排',
             active: c.id === state.activeChartId,
           }));
           const text = [
@@ -486,7 +499,7 @@ export function apply(ctx) {
           activeChartId: state.activeChartId,
           activeSystem: state.activeSystem,
           focusedPart,
-          chart: targetChart,
+          ...(targetChart.rulesVersion && { chart: withBaziAnalysis(targetChart) }),
           text: formatChartForModel(targetChart, focusedPart),
         };
       },

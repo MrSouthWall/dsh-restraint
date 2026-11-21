@@ -154,25 +154,48 @@ function createStageVisuals(React) {
       'aria-hidden': true,
       style: { position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 },
     },
-      // Delicate astronomical background rings (true circles!)
-      h('circle', { cx: 300, cy: 300, r: 274, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.9, strokeDasharray: '4 8' }),
-      h('circle', { cx: 300, cy: 300, r: 232, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.7 }),
-      // Subtle constellation hairlines in corners
-      h('path', {
-        d: 'M 42 48 L 96 84 L 158 36 M 446 40 L 528 72 L 562 134 M 48 442 L 114 496 L 192 548 M 478 502 L 546 448',
-        fill: 'none',
-        stroke: isDark ? 'rgba(199,210,254,0.14)' : 'rgba(154,103,0,0.12)',
-        strokeWidth: 0.8,
+      h('circle', {
+        cx: 300, cy: 300, r: 274, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.9, strokeDasharray: '4 8',
+        className: 'zm-decorative-orbit', style: { '--zm-orbit-duration': '104s' },
       }),
-      // Perfectly circular stars (dark) or delicate bronze-gold dust motes (light)
-      ...STAR_SEEDS.map(([cx, cy, r, delay], i) => h('circle', {
-        key: i,
-        cx, cy, r,
-        fill: isDark ? (i % 3 === 0 ? '#fae2a0' : '#c7d2fe') : (i % 2 === 0 ? '#b88018' : '#059669'),
-        opacity: isDark ? 0.85 : 0.34,
-        className: 'zm-twinkle',
-        style: { animationDelay: delay },
-      })),
+      h('circle', {
+        cx: 300, cy: 300, r: 232, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.7, strokeDasharray: '18 6 3 7',
+        className: 'zm-decorative-orbit', style: { '--zm-orbit-duration': '150s', '--zm-orbit-direction': 'reverse' },
+      }),
+      // The constellation lines orbit with the stars at their endpoints.
+      h('g', { className: 'zm-decorative-orbit', style: { '--zm-orbit-duration': '196s' } },
+        h('path', {
+          d: 'M 42 48 L 96 84 L 158 36 M 446 40 L 528 72 L 562 134 M 48 442 L 114 496 L 192 548 M 478 502 L 546 448',
+          fill: 'none',
+          stroke: isDark ? 'rgba(199,210,254,0.14)' : 'rgba(154,103,0,0.12)',
+          strokeWidth: 0.8,
+        }),
+        ...STAR_SEEDS.map(([cx, cy, r, delay], i) => h('circle', {
+          key: i,
+          cx, cy, r,
+          fill: isDark ? (i % 3 === 0 ? '#fae2a0' : '#c7d2fe') : (i % 2 === 0 ? '#b88018' : '#059669'),
+          opacity: isDark ? 0.85 : 0.34,
+          className: 'zm-twinkle',
+          style: { animationDelay: delay },
+        })),
+      ),
+    );
+  }
+
+  function ChartCanvas({ isDark, tabs, actions, controls, readout, children }) {
+    return h('div', { className: 'zm-canvas' },
+      h(CelestialBackdropSvg, { isDark }),
+      h('div', { className: 'zm-canvas-bar' },
+        h('div', { className: 'zm-canvas-row' }, tabs),
+        h('div', { className: 'zm-canvas-row' }, actions),
+      ),
+      h('div', { className: 'zm-canvas-artwork' },
+        h('div', { className: 'zm-canvas-content' }, children),
+      ),
+      h('div', { className: 'zm-canvas-footer' },
+        h('div', { className: 'zm-canvas-row' }, controls || readout),
+        h('div', { className: 'zm-canvas-row' }, controls ? readout : null),
+      ),
     );
   }
 
@@ -181,6 +204,18 @@ function createStageVisuals(React) {
     正南: -90, 西南: -45, 正西: 0, 西北: 45,
     正北: 90, 东北: 135, 正东: 180, 东南: -135,
   };
+
+  function CompassOrbit({ color }) {
+    return h('g', { className: 'zm-decorative-orbit', 'aria-hidden': true, pointerEvents: 'none' },
+      h('circle', {
+        cx: 210, cy: 210, r: 207,
+        fill: 'none', stroke: color, strokeOpacity: 0.43, strokeWidth: 1.6,
+        pathLength: 360, strokeDasharray: '48 112 26 82 11 81', strokeLinecap: 'round',
+      }),
+      h('circle', { cx: 210, cy: 3, r: 2, fill: color, opacity: 0.7 }),
+      h('circle', { cx: 3, cy: 210, r: 1.45, fill: color, opacity: 0.55 }),
+    );
+  }
 
   function makeSectorPath(cx, cy, degCenter, halfSpread, r1, r2) {
     const a1 = ((degCenter - halfSpread) * Math.PI) / 180;
@@ -199,7 +234,6 @@ function createStageVisuals(React) {
   // =========================================================================
   // 1. BAZI CELESTIAL ELEMENTAL ORRERY (420x420) — Works Idle + Active!
   // =========================================================================
-  const BRANCHES_12 = ['午', '未', '申', '酉', '戌', '亥', '子', '丑', '寅', '卯', '辰', '巳'];
   const PILLAR_ORBITS = [
     { idx: 0, tag: '年', deg: -135 },
     { idx: 1, tag: '月', deg: -45 },
@@ -215,21 +249,13 @@ function createStageVisuals(React) {
     const pentR = 155;
     const pillarR = 96;
 
-    const pcts = chart?.wuxing?.percentages || { 木: 20, 火: 20, 土: 20, 金: 20, 水: 20 };
-    const favs = chart?.wuxing?.favorable || [];
-    const maxPct = Math.max(36, ...elements.map(e => Number(pcts[e]) || 0));
-
     const elNodes = elements.map((el, i) => {
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-      const val = Number(pcts[el]) || 12;
-      const ratio = 0.28 + (val / maxPct) * 0.68;
       return {
         el,
         x: cx + Math.cos(a) * pentR,
         y: cy + Math.sin(a) * pentR,
-        dx: cx + Math.cos(a) * pentR * ratio,
-        dy: cy + Math.sin(a) * pentR * ratio,
-        pct: val,
+        pct: (chart?.wuxing?.counts?.[el] ?? 0) * 12.5,
       };
     });
 
@@ -240,21 +266,19 @@ function createStageVisuals(React) {
 
     const dmEl = chart?.dayMaster?.element || '金';
     const dmStyle = pal.el[dmEl] || pal.el['金'];
-    const glowId = `zm-bz-glow-${pal.key}`;
     const coreGrad = `zm-bz-core-${pal.key}`;
+    const pillarLinks = selectedWuXing ? [] : (chart?.interactions || []).filter(
+      link => link.from === selectedPillarIdx || link.to === selectedPillarIdx,
+    );
 
     return h('svg', {
       viewBox: '0 0 420 420',
       width: '100%',
-      role: 'img',
+      role: onSelectWuXing || (chart && onSelectPillar) ? 'group' : 'img',
       'aria-label': chart ? `四柱五行天象仪 ${chart.title}` : '四柱五行天象仪待机图腾',
       style: { display: 'block', width: '100%', height: 'auto', aspectRatio: '1 / 1' },
     },
       h('defs', null,
-        h('filter', { id: glowId, x: '-30%', y: '-30%', width: '160%', height: '160%' },
-          h('feGaussianBlur', { stdDeviation: isDark ? 4 : 2.2, result: 'b' }),
-          h('feMerge', null, h('feMergeNode', { in: 'b' }), h('feMergeNode', { in: 'SourceGraphic' })),
-        ),
         h('radialGradient', { id: coreGrad, cx: '50%', cy: '45%', r: '55%' },
           h('stop', { offset: '0%', stopColor: isDark ? '#2b2447' : '#fffdf5' }),
           h('stop', { offset: '68%', stopColor: pal.surfaceMid }),
@@ -262,8 +286,7 @@ function createStageVisuals(React) {
         ),
       ),
 
-      // Layer 1: Rotating 60-Tick Golden Vernier Degree Ring + 12 Branches
-      h('g', { className: 'zm-spin-slow' },
+      h('g', { 'aria-hidden': true },
         h('circle', { cx, cy, r: 202, fill: 'none', stroke: pal.goldLine, strokeWidth: 1.3 }),
         h('circle', { cx, cy, r: 176, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1 }),
         ...Array.from({ length: 60 }, (_, i) => {
@@ -279,22 +302,9 @@ function createStageVisuals(React) {
             strokeWidth: major ? 1.6 : 0.85,
           });
         }),
-        ...BRANCHES_12.map((br, i) => {
-          const deg = -90 + i * 30;
-          const rad = (deg * Math.PI) / 180;
-          return h('text', {
-            key: `br-${br}`,
-            x: (cx + Math.cos(rad) * 184).toFixed(1),
-            y: (cy + Math.sin(rad) * 184 + 3.5).toFixed(1),
-            textAnchor: 'middle',
-            fill: pal.inkMuted,
-            fontSize: 9.5,
-            fontWeight: 700,
-          }, br);
-        }),
       ),
 
-      // Layer 2: Five-Element Sacred Pentagon + Energy Field Polygon
+      // Five-element generating and controlling cycles.
       h('polygon', {
         points: elNodes.map(n => `${n.x.toFixed(1)},${n.y.toFixed(1)}`).join(' '),
         fill: 'none',
@@ -309,34 +319,26 @@ function createStageVisuals(React) {
         stroke: pal.goldFaint,
         strokeWidth: 0.9,
       }),
-      // Dynamic Elemental Energy Aura Polygon
-      h('polygon', {
-        points: elNodes.map(n => `${n.dx.toFixed(1)},${n.dy.toFixed(1)}`).join(' '),
-        fill: pal.goldSoft,
-        stroke: pal.gold,
-        strokeWidth: 1.8,
-        strokeLinejoin: 'round',
-        filter: `url(#${glowId})`,
+      h('circle', {
+        cx, cy, r: pillarR, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1.1, strokeDasharray: '2 5',
+        className: 'zm-decorative-orbit', 'aria-hidden': true, pointerEvents: 'none',
       }),
-
-      // Layer 3: Inner Pillar Orbit Track + Harmonic Interaction Filaments (合冲光弧)
-      h('circle', { cx, cy, r: pillarR, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1.1, strokeDasharray: '2 5' }),
-      ...(chart?.interactions || []).slice(0, 5).map((it, idx) => {
+      ...pillarLinks.map((it, idx) => {
         const p1 = pillarPos[it.from];
         const p2 = pillarPos[it.to];
         if (!p1 || !p2) return null;
         const curvePull = idx % 2 === 0 ? 0.56 : 0.34;
         const qx = cx + ((p1.x + p2.x) / 2 - cx) * curvePull;
         const qy = cy + ((p1.y + p2.y) / 2 - cy) * curvePull;
-        const col = it.polarity === 'good' ? pal.goodStroke : pal.badStroke;
+        const isStem = it.layer === 'gan' || it.type.startsWith('天干');
         return h('path', {
           key: `arc-${idx}`,
           d: `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} Q ${qx.toFixed(1)} ${qy.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`,
           fill: 'none',
-          stroke: col,
+          stroke: isStem ? pal.blue : pal.purple,
           strokeWidth: 2,
-          strokeDasharray: '6 4',
-          className: 'zm-dash-flow',
+          strokeDasharray: isStem ? undefined : '4 3',
+          pointerEvents: 'none',
           opacity: 0.88,
         });
       }),
@@ -344,50 +346,52 @@ function createStageVisuals(React) {
       // Layer 4: 5 Clickable Elemental Crystal Nodes
       ...elNodes.map(n => {
         const st = pal.el[n.el];
-        const isFav = favs.includes(n.el);
         const isSel = selectedWuXing === n.el;
         return h('g', {
           key: `el-${n.el}`,
+          className: onSelectWuXing ? 'zm-chart-control' : undefined,
           role: onSelectWuXing ? 'button' : undefined,
           tabIndex: onSelectWuXing ? 0 : undefined,
-          'aria-label': `${n.el} ${n.pct}%${isFav ? ' 喜用' : ''}`,
+          'aria-label': chart ? `${n.el} · 明干支占比 ${n.pct}%` : n.el,
+          'aria-pressed': onSelectWuXing ? isSel : undefined,
           style: { cursor: onSelectWuXing ? 'pointer' : 'default' },
           onClick: onSelectWuXing ? () => onSelectWuXing(n.el) : undefined,
           onKeyDown: onSelectWuXing ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectWuXing(n.el); } } : undefined,
         },
-          isFav ? h('circle', {
-            cx: n.x, cy: n.y, r: 21,
-            fill: 'none', stroke: pal.goldBright, strokeWidth: 1.4, strokeDasharray: '3 2.5', className: 'zm-spin-rev',
-          }) : null,
           h('circle', {
-            cx: n.x, cy: n.y, r: isSel ? 17.5 : 15.5,
+            cx: n.x, cy: n.y, r: 19,
             fill: pal.surface,
             stroke: st.ring,
             strokeWidth: isSel ? 2.4 : 1.6,
           }),
-          h('circle', { cx: n.x, cy: n.y, r: isSel ? 14 : 12.5, fill: st.fill }),
-          h('text', { x: n.x, y: n.y + 4, textAnchor: 'middle', fill: st.fg, fontSize: 12.5, fontWeight: 800 }, n.el),
+          h('circle', { cx: n.x, cy: n.y, r: 16, fill: st.fill }),
+          h('text', { x: n.x, y: n.y + (chart ? 0 : 4), textAnchor: 'middle', fill: st.fg, fontSize: 12.5, fontWeight: 800 }, n.el),
+          chart ? h('text', { x: n.x, y: n.y + 11, textAnchor: 'middle', fill: pal.inkSub, fontSize: 8.5, fontWeight: 700 }, `${n.pct}%`) : null,
+          onSelectWuXing ? h('circle', { className: 'zm-chart-focus-ring', cx: n.x, cy: n.y, r: 23, 'aria-hidden': true }) : null,
         );
       }),
 
       // Layer 5: 4 Sculpted Celestial Pillar Medallions (Active) OR 4 Sacred Glyph Orbs (Idle)
       ...pillarPos.map(pos => {
         const p = chart?.pillars?.[pos.idx];
-        const isSel = chart && selectedPillarIdx === pos.idx;
+        const isSel = !selectedWuXing && selectedPillarIdx === pos.idx && Boolean(p);
+        const interactive = p && onSelectPillar;
         const gc = p ? (pal.el[p.ganElement] || pal.el['金']) : pal.el['金'];
         const zc = p ? (pal.el[p.zhiElement] || pal.el['水']) : pal.el['水'];
         return h('g', {
           key: `pil-${pos.idx}`,
-          role: p && onSelectPillar ? 'button' : undefined,
-          tabIndex: p && onSelectPillar ? 0 : undefined,
+          className: interactive ? 'zm-chart-control' : undefined,
+          role: interactive ? 'button' : undefined,
+          tabIndex: interactive ? 0 : undefined,
           'aria-label': p ? `${p.label} ${p.ganZhi}` : `${pos.tag}柱`,
-          style: { cursor: p ? 'pointer' : 'default' },
-          onClick: p && onSelectPillar ? () => onSelectPillar(pos.idx) : undefined,
-          onKeyDown: p && onSelectPillar ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPillar(pos.idx); } } : undefined,
+          'aria-pressed': interactive ? isSel : undefined,
+          style: { cursor: interactive ? 'pointer' : 'default' },
+          onClick: interactive ? () => onSelectPillar(pos.idx) : undefined,
+          onKeyDown: interactive ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPillar(pos.idx); } } : undefined,
         },
           isSel ? h('circle', {
             cx: pos.x, cy: pos.y, r: 30.5,
-            fill: 'none', stroke: pal.goldBright, strokeWidth: 1.8, strokeDasharray: '4 3', className: 'zm-spin-slow',
+            fill: 'none', stroke: pal.goldBright, strokeWidth: 1.2, pointerEvents: 'none',
           }) : null,
           h('circle', {
             cx: pos.x, cy: pos.y, r: 26,
@@ -404,6 +408,7 @@ function createStageVisuals(React) {
           ) : h(React.Fragment, null,
             h('text', { x: pos.x, y: pos.y + 5, textAnchor: 'middle', fill: pal.gold, fontSize: 15, fontWeight: 800, opacity: 0.72 }, pos.tag),
           ),
+          interactive ? h('circle', { className: 'zm-chart-focus-ring', cx: pos.x, cy: pos.y, r: 36.5, 'aria-hidden': true }) : null,
         );
       }),
 
@@ -411,7 +416,10 @@ function createStageVisuals(React) {
       h('circle', { cx, cy, r: 54, fill: 'none', stroke: pal.goldLine, strokeWidth: 1.2, className: 'zm-aura' }),
       h('circle', { cx, cy, r: 46, fill: `url(#${coreGrad})`, stroke: chart ? dmStyle.ring : pal.gold, strokeWidth: 2.2 }),
       chart ? h(React.Fragment, null,
-        h('circle', { cx, cy, r: 39, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '2 2' }),
+        h('circle', {
+          cx, cy, r: 39, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '2 2',
+          className: 'zm-decorative-orbit', style: { '--zm-orbit-direction': 'reverse' }, 'aria-hidden': true, pointerEvents: 'none',
+        }),
         h('text', { x: cx, y: cy - 4, textAnchor: 'middle', fill: dmStyle.fg, fontSize: 24, fontWeight: 800 }, chart.dayMaster.gan),
         h('text', { x: cx, y: cy + 16, textAnchor: 'middle', fill: pal.gold, fontSize: 11, fontWeight: 700 }, `${chart.dayMaster.element} · 日主`),
       ) : h(TaijiCore, { cx, cy, r: 34, pal, spin: true }),
@@ -430,23 +438,19 @@ function createStageVisuals(React) {
     const pal = getPalette(isDark);
     const cx = 210;
     const cy = 210;
-    const dirs = mingGua?.directions || [
-      { direction: '正南', star: '离', luck: '吉' }, { direction: '西南', star: '坤', luck: '吉' },
-      { direction: '正西', star: '兑', luck: '吉' }, { direction: '西北', star: '乾', luck: '吉' },
-      { direction: '正北', star: '坎', luck: '凶' }, { direction: '东北', star: '艮', luck: '凶' },
-      { direction: '正东', star: '震', luck: '凶' }, { direction: '东南', star: '巽', luck: '凶' },
-    ];
-    const wealthDeg = COMPASS_ANGLES[mingGua?.bestWealthDir] ?? -90;
+    const dirs = mingGua?.directions || Object.entries(DIR_TRIGRAM).map(([direction, star]) => ({ direction, star }));
+    const lifeDeg = COMPASS_ANGLES[mingGua?.bestWealthDir];
 
     return h('svg', {
       viewBox: '0 0 420 420',
       width: '100%',
-      role: 'img',
+      role: onSelectDir ? 'group' : 'img',
       'aria-label': mingGua ? `八宅命卦风水罗盘 ${mingGua.name}` : '八宅风水罗盘',
       style: { display: 'block', width: '100%', height: 'auto', aspectRatio: '1 / 1' },
     },
-      // Outer 72-tick rotating vernier bezel
-      h('g', { className: 'zm-spin-slow' },
+      h(CompassOrbit, { color: pal.goldBright }),
+      // Fixed tick marks follow the compass headings.
+      h('g', { 'aria-hidden': true },
         h('circle', { cx, cy, r: 202, fill: 'none', stroke: pal.goldLine, strokeWidth: 1.4 }),
         h('circle', { cx, cy, r: 190, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1 }),
         ...Array.from({ length: 72 }, (_, i) => {
@@ -492,12 +496,14 @@ function createStageVisuals(React) {
         const isBest = mingGua?.bestWealthDir === d.direction;
         return h('g', {
           key: d.direction,
-          role: 'button',
-          tabIndex: 0,
+          className: onSelectDir ? 'zm-chart-control' : undefined,
+          role: onSelectDir ? 'button' : undefined,
+          tabIndex: onSelectDir ? 0 : undefined,
           'aria-label': `${d.direction} ${d.star} ${d.luck}`,
-          style: { cursor: 'pointer' },
-          onClick: () => onSelectDir && onSelectDir(d.direction),
-          onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && onSelectDir) { e.preventDefault(); onSelectDir(d.direction); } },
+          'aria-pressed': onSelectDir ? isSel : undefined,
+          style: { cursor: onSelectDir ? 'pointer' : 'default' },
+          onClick: onSelectDir ? () => onSelectDir(d.direction) : undefined,
+          onKeyDown: onSelectDir ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectDir(d.direction); } } : undefined,
         },
           h('path', {
             d: makeSectorPath(cx, cy, deg, 21.4, 72, 158),
@@ -523,17 +529,24 @@ function createStageVisuals(React) {
             fontSize: 10.5,
             fontWeight: 700,
           }, d.direction),
+          onSelectDir ? h('path', {
+            className: 'zm-chart-focus-ring',
+            d: makeSectorPath(cx, cy, deg, 19.5, 76, 154),
+            'aria-hidden': true,
+          }) : null,
         );
       }),
 
       // Heaven Pool Center + Gleaming Magnetic Compass Needle pointing to 生气大财位
       h('circle', { cx, cy, r: 66, fill: pal.surface, stroke: pal.gold, strokeWidth: 2 }),
-      h('circle', { cx, cy, r: 58, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '2 3' }),
-      // Needle rotated toward best wealth direction
-      h('g', { transform: `rotate(${(wealthDeg + 90).toFixed(1)} ${cx} ${cy})` },
+      h('circle', {
+        cx, cy, r: 58, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '2 3',
+        className: 'zm-decorative-orbit', style: { '--zm-orbit-direction': 'reverse' }, 'aria-hidden': true, pointerEvents: 'none',
+      }),
+      lifeDeg != null ? h('g', { transform: `rotate(${lifeDeg + 90} ${cx} ${cy})` },
         h('polygon', { points: `${cx},${cy - 54} ${cx - 5.5},${cy} ${cx + 5.5},${cy}`, fill: pal.goodStroke, opacity: 0.92 }),
         h('polygon', { points: `${cx},${cy + 46} ${cx - 4.5},${cy} ${cx + 4.5},${cy}`, fill: pal.goldLine, opacity: 0.65 }),
-      ),
+      ) : null,
       h('circle', { cx, cy, r: 28, fill: pal.surface, stroke: pal.gold, strokeWidth: 1.5 }),
       h('text', { x: cx, y: cy - 1, textAnchor: 'middle', fill: pal.gold, fontSize: 14, fontWeight: 800 }, mingGua ? mingGua.name : '八宅'),
       h('text', { x: cx, y: cy + 15, textAnchor: 'middle', fill: pal.goodStroke, fontSize: 9.5, fontWeight: 700 }, mingGua ? mingGua.group : '罗盘'),
@@ -561,24 +574,19 @@ function createStageVisuals(React) {
     const hitSet = new Set(radarHits);
     const outerPalaces = chart ? chart.palaces.filter(p => !p.isCenter) : IDLE_QIMEN_SECTORS;
     const centerPalace = chart?.palaces?.find(p => p.isCenter);
-    const glowId = `zm-qm-glow-${pal.key}`;
+    const interactive = chart && onSelectPalace;
+    const isCenterSelected = Boolean(chart) && selectedPalaceNum === 5;
 
     return h('svg', {
       viewBox: '0 0 420 420',
       width: '100%',
-      role: 'img',
+      role: interactive ? 'group' : 'img',
       'aria-label': chart ? `奇门遁甲玄天浑天仪 ${chart.meta.juTitle}` : '奇门遁甲玄天浑天仪',
       style: { display: 'block', width: '100%', height: 'auto', aspectRatio: '1 / 1' },
     },
-      h('defs', null,
-        h('filter', { id: glowId, x: '-25%', y: '-25%', width: '150%', height: '150%' },
-          h('feGaussianBlur', { stdDeviation: isDark ? 3.5 : 1.8, result: 'b' }),
-          h('feMerge', null, h('feMergeNode', { in: 'b' }), h('feMergeNode', { in: 'SourceGraphic' })),
-        ),
-      ),
-
-      // Layer 1: Rotating 72-division engraved golden vernier bezel
-      h('g', { className: 'zm-spin-slow' },
+      h(CompassOrbit, { color: pal.goldBright }),
+      // Fixed tick marks follow the compass headings.
+      h('g', { 'aria-hidden': true },
         h('circle', { cx, cy, r: 202, fill: 'none', stroke: pal.goldLine, strokeWidth: 1.4 }),
         ...Array.from({ length: 72 }, (_, i) => {
           const rad = (i * 5 * Math.PI) / 180;
@@ -609,7 +617,7 @@ function createStageVisuals(React) {
           thickness: 2.3,
           gap: 2.3,
           angleDeg: deg + 90,
-          color: hitSet.has(p.num) ? pal.goodStroke : pal.gold,
+          color: hitSet.has(p.num) ? pal.blue : pal.gold,
         });
       }),
 
@@ -617,84 +625,75 @@ function createStageVisuals(React) {
       ...outerPalaces.map(p => {
         const deg = COMPASS_ANGLES[p.direction] ?? 0;
         const rad = (deg * Math.PI) / 180;
-        const isSel = chart && selectedPalaceNum === p.num;
+        const isSel = Boolean(chart) && selectedPalaceNum === p.num;
         const isHit = chart && hitSet.has(p.num);
         const isGood = ['开门', '休门', '生门'].includes(p.gate);
         const isTough = ['死门', '惊门', '伤门'].includes(p.gate);
+        const horizontal = deg === 0 || deg === 180;
+        const labelPosition = (radius, baseline, row) => ({
+          x: cx + Math.cos(rad) * (horizontal ? 110 : radius),
+          y: horizontal ? cy - 23 + row * 17 : cy + Math.sin(rad) * radius + baseline,
+        });
 
         return h('g', {
           key: p.num,
-          role: chart ? 'button' : undefined,
-          tabIndex: chart ? 0 : undefined,
-          'aria-label': `${p.direction} ${p.gate} ${p.star} ${p.deity}`,
-          style: { cursor: chart ? 'pointer' : 'default' },
-          onClick: chart && onSelectPalace ? () => onSelectPalace(p.num) : undefined,
-          onKeyDown: chart && onSelectPalace ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(p.num); } } : undefined,
+          className: interactive ? 'zm-chart-control' : undefined,
+          role: interactive ? 'button' : undefined,
+          tabIndex: interactive ? 0 : undefined,
+          'aria-label': [p.direction, p.gate, p.star, p.deity, p.isZhiShi && '值使', p.isKong && '空亡', p.isYiMa && '驿马'].filter(Boolean).join(' '),
+          'aria-pressed': interactive ? isSel : undefined,
+          style: { cursor: interactive ? 'pointer' : 'default' },
+          onClick: interactive ? () => onSelectPalace(p.num) : undefined,
+          onKeyDown: interactive ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(p.num); } } : undefined,
         },
           h('path', {
             d: makeSectorPath(cx, cy, deg, 21.4, 60, 160),
-            fill: isSel ? pal.selFill : isHit ? pal.goodFill : pal.wedgeIdle,
-            stroke: isSel ? pal.selStroke : isHit ? pal.goodStroke : pal.wedgeBorder,
+            fill: isSel ? pal.selFill : pal.wedgeIdle,
+            stroke: isSel ? pal.selStroke : isHit ? pal.blue : pal.wedgeBorder,
             strokeWidth: isSel ? 2.4 : isHit ? 1.9 : 1.05,
           }),
-          // YongShen Radar Laser Beam
+          // Mark palaces that match the current topic.
           isHit ? h('g', null,
-            h('line', {
-              x1: (cx + Math.cos(rad) * 58).toFixed(1),
-              y1: (cy + Math.sin(rad) * 58).toFixed(1),
-              x2: (cx + Math.cos(rad) * 160).toFixed(1),
-              y2: (cy + Math.sin(rad) * 160).toFixed(1),
-              stroke: pal.goodStroke,
-              strokeWidth: 2,
-              strokeDasharray: '5 4',
-              className: 'zm-dash-flow',
-              opacity: 0.72,
-              filter: `url(#${glowId})`,
-            }),
-            h('circle', {
-              cx: (cx + Math.cos(rad) * 106).toFixed(1),
-              cy: (cy + Math.sin(rad) * 106).toFixed(1),
-              r: 17,
-              fill: 'none',
-              stroke: pal.goodStroke,
-              strokeWidth: 1.2,
-              opacity: 0.55,
-              className: 'zm-aura',
+            h('path', {
+              d: makeSectorPath(cx, cy, deg, 14, 160, 165),
+              fill: pal.blue,
+              pointerEvents: 'none',
             }),
           ) : null,
           // Tiered Glyphs (Deity -> Star -> Gate -> Stems)
           h('text', {
-            x: cx + Math.cos(rad) * 144,
-            y: cy + Math.sin(rad) * 144 + 3.5,
+            ...labelPosition(144, 3.5, 0),
             textAnchor: 'middle',
             fill: p.isZhiFu ? pal.goldBright : pal.indigo,
             fontSize: 10.5,
             fontWeight: 700,
-          }, `${p.deity}${p.isKong ? '·空' : ''}`),
+          }, `${p.deity}${p.isKong ? '·空' : ''}${p.isYiMa ? '·马' : ''}`),
           h('text', {
-            x: cx + Math.cos(rad) * 123,
-            y: cy + Math.sin(rad) * 123 + 3.5,
+            ...labelPosition(123, 3.5, 1),
             textAnchor: 'middle',
             fill: pal.inkSub,
             fontSize: 10.5,
             fontWeight: 600,
           }, p.star),
           h('text', {
-            x: cx + Math.cos(rad) * 101,
-            y: cy + Math.sin(rad) * 101 + 4.5,
+            ...labelPosition(101, 4.5, 2),
             textAnchor: 'middle',
             fill: isGood ? pal.goodStroke : isTough ? pal.badStroke : pal.ink,
             fontSize: 13.5,
             fontWeight: 800,
-          }, p.gate),
+          }, `${p.gate}${p.isZhiShi ? '·使' : ''}`),
           h('text', {
-            x: cx + Math.cos(rad) * 76,
-            y: cy + Math.sin(rad) * 76 + 3.5,
+            ...labelPosition(76, 3.5, 3),
             textAnchor: 'middle',
             fill: pal.gold,
             fontSize: 11,
             fontWeight: 800,
           }, `${p.heavenStem}/${p.earthStem}`),
+          interactive ? h('path', {
+            className: 'zm-chart-focus-ring',
+            d: makeSectorPath(cx, cy, deg, 19.5, 64, 156),
+            'aria-hidden': true,
+          }) : null,
         );
       }),
 
@@ -704,19 +703,27 @@ function createStageVisuals(React) {
 
       // Layer 5: Central Sculpted Taiji Pool / Ju Title Core
       h('g', {
-        role: chart ? 'button' : undefined,
-        tabIndex: chart ? 0 : undefined,
+        className: interactive ? 'zm-chart-control' : undefined,
+        role: interactive ? 'button' : undefined,
+        tabIndex: interactive ? 0 : undefined,
         'aria-label': chart ? `中五宫 ${chart.meta.juTitle}` : '太极中宫',
-        style: { cursor: chart ? 'pointer' : 'default' },
-        onClick: chart && onSelectPalace ? () => onSelectPalace(5) : undefined,
-        onKeyDown: chart && onSelectPalace ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(5); } } : undefined,
+        'aria-pressed': interactive ? isCenterSelected : undefined,
+        style: { cursor: interactive ? 'pointer' : 'default' },
+        onClick: interactive ? () => onSelectPalace(5) : undefined,
+        onKeyDown: interactive ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(5); } } : undefined,
       },
-        h('circle', { cx, cy, r: 56, fill: pal.surface, stroke: pal.gold, strokeWidth: 2 }),
+        h('circle', {
+          cx, cy, r: 56,
+          fill: isCenterSelected ? pal.surfaceMid : pal.surface,
+          stroke: isCenterSelected ? pal.selStroke : pal.gold,
+          strokeWidth: isCenterSelected ? 2.4 : 2,
+        }),
         chart ? h(React.Fragment, null,
           h('g', { opacity: isDark ? 0.22 : 0.14 }, h(TaijiCore, { cx, cy, r: 46, pal, spin: true })),
           h('text', { x: cx, y: cy - 3, textAnchor: 'middle', fill: pal.gold, fontSize: 14.5, fontWeight: 800 }, chart.meta.juTitle),
-          h('text', { x: cx, y: cy + 16, textAnchor: 'middle', fill: pal.inkMuted, fontSize: 10.5, fontWeight: 700 }, `中寄 ${centerPalace?.earthStem || ''}`),
+          h('text', { x: cx, y: cy + 16, textAnchor: 'middle', fill: pal.inkMuted, fontSize: 10.5, fontWeight: 700 }, `中宫地盘 ${centerPalace?.earthStem || ''}`),
         ) : h(TaijiCore, { cx, cy, r: 44, pal, spin: true }),
+        interactive ? h('circle', { className: 'zm-chart-focus-ring', cx, cy, r: 51, 'aria-hidden': true }) : null,
       ),
     );
   }
@@ -735,6 +742,17 @@ function createStageVisuals(React) {
     { num: 5, name: '巽', el: '木', deg: -45 },
   ];
 
+  function getMeihuaStageContext(chart, stage) {
+    if (!chart?.tiYong || (stage !== 'main' && stage !== 'changed')) return null;
+    const ty = chart.tiYong;
+    const changed = stage === 'changed';
+    return {
+      ti: ty.tiTrigram,
+      yong: changed ? ty.changedYongTrigram : ty.yongTrigram,
+      relation: changed ? ty.changedRelation : ty.mainRelation,
+    };
+  }
+
   function MeihuaResonatorSvg({ chart, isDark = true, activeStage = 'main' }) {
     const pal = getPalette(isDark);
     const cx = 210;
@@ -742,8 +760,9 @@ function createStageVisuals(React) {
     const ringR = 158;
     const glowId = `zm-mh-glow-${pal.key}`;
 
-    const tiNum = chart?.tiYong?.tiTrigram?.num ?? 0;
-    const yongNum = chart?.tiYong?.yongTrigram?.num ?? 0;
+    const stage = getMeihuaStageContext(chart, activeStage);
+    const tiNum = stage?.ti?.num ?? 0;
+    const yongNum = stage?.yong?.num ?? 0;
     const posOf = num => {
       const g = CONGENITAL_RING.find(x => x.num === num) || CONGENITAL_RING[0];
       const rad = (g.deg * Math.PI) / 180;
@@ -751,10 +770,8 @@ function createStageVisuals(React) {
     };
     const pTi = posOf(tiNum);
     const pYong = posOf(yongNum);
-    const rel = chart?.tiYong?.mainRelation;
-    const beamColor = !rel
-      ? pal.gold
-      : rel.score >= 85 ? pal.goodStroke : rel.score >= 70 ? pal.blue : rel.score >= 52 ? pal.amber : pal.badStroke;
+    const relation = stage?.relation?.relation;
+    const beamColor = pal.gold;
 
     const hex = chart?.hexagrams?.[activeStage] || chart?.hexagrams?.main;
     const movingLine = activeStage === 'main' || activeStage === 'changed' ? (chart?.meta?.movingLine || 0) : 0;
@@ -801,7 +818,10 @@ function createStageVisuals(React) {
         stroke: pal.goldFaint,
         strokeWidth: 1,
       }),
-      h('circle', { cx, cy, r: ringR, fill: 'none', stroke: pal.goldLine, strokeWidth: 1, strokeDasharray: '3 5' }),
+      h('circle', {
+        cx, cy, r: ringR, fill: 'none', stroke: pal.goldLine, strokeWidth: 1, strokeDasharray: '3 5',
+        className: 'zm-decorative-orbit', style: { '--zm-orbit-direction': 'reverse' }, 'aria-hidden': true, pointerEvents: 'none',
+      }),
 
       // Thick Multi-Layer Glowing Ti <-> Yong Energy Stream
       chart && tiNum && yongNum ? (
@@ -874,8 +894,8 @@ function createStageVisuals(React) {
           const startY = cy - 54;
           const yy = startY + row * (barH + gapY);
           const isUpper = idx >= 3;
-          const isTiBar = activeStage !== 'mutual' && ((chart.tiYong.tiPosition === 'upper' && isUpper) || (chart.tiYong.tiPosition === 'lower' && !isUpper));
-          const barCol = isMov ? pal.badStroke : (isTiBar ? pal.goldBright : pal.indigo);
+          const isTiBar = stage && ((chart.tiYong.tiPosition === 'upper') === isUpper);
+          const barCol = isMov ? pal.amber : isTiBar ? pal.goldBright : stage ? pal.purple : pal.ink;
           const els = [];
           if (isYang) {
             els.push(h('rect', {
@@ -896,13 +916,13 @@ function createStageVisuals(React) {
             els.push(h('polygon', {
               key: `mov-${yaoNum}`,
               points: `${cx + barW / 2 + 7},${yy + 4.25} ${cx + barW / 2 + 12},${yy} ${cx + barW / 2 + 17},${yy + 4.25} ${cx + barW / 2 + 12},${yy + 8.5}`,
-              fill: pal.badStroke,
+              fill: pal.amber,
             }));
           }
           return els;
         }),
         h('text', { x: cx, y: cy + 50, textAnchor: 'middle', fill: pal.gold, fontSize: 13.5, fontWeight: 800 }, hex.fullName),
-        h('text', { x: cx, y: cy + 66, textAnchor: 'middle', fill: beamColor, fontSize: 10, fontWeight: 700 }, `${rel.relation} · ${chart.tiYong.overallVerdict}`),
+        relation ? h('text', { x: cx, y: cy + 66, textAnchor: 'middle', fill: beamColor, fontSize: 10, fontWeight: 700 }, relation) : null,
       ) : h(TaijiCore, { cx, cy, r: 70, pal, spin: true }),
     );
   }
@@ -932,10 +952,11 @@ function createStageVisuals(React) {
     const cy = 210;
     const palaces = chart?.palaces || IDLE_ZW_PALACES;
     const selPalace = palaces[selectedPalaceIdx] || palaces[0];
-    const triSet = new Set([selPalace.oppositeIndex, ...(selPalace.trineIndices || [])]);
+    const triSet = new Set(selPalace.trineIndices || []);
     const innerR = 98;
     const outerR = 192;
     const glowId = `zm-zw-glow-${pal.key}`;
+    const interactive = chart && onSelectPalace;
 
     const yearlyMutByStar = {};
     if (yearlyObj?.mutagens) {
@@ -957,7 +978,7 @@ function createStageVisuals(React) {
     return h('svg', {
       viewBox: '0 0 420 420',
       width: '100%',
-      role: 'img',
+      role: interactive ? 'group' : 'img',
       'aria-label': chart ? `紫微垣十二宫星图 ${chart.title}` : '紫微垣十二宫星图轮盘',
       style: { display: 'block', width: '100%', height: 'auto', aspectRatio: '1 / 1' },
     },
@@ -990,34 +1011,36 @@ function createStageVisuals(React) {
       ...palaces.map(p => {
         const deg = ziweiAngleForIndex(p.index);
         const rad = (deg * Math.PI) / 180;
-        const isSelf = chart && p.index === selectedPalaceIdx;
+        const isSelf = Boolean(chart) && p.index === selectedPalaceIdx;
+        const isOpposite = chart && p.index === selPalace.oppositeIndex;
         const isTrine = chart && !isSelf && triSet.has(p.index);
         const isYearly = chart && yearlyObj && yearlyObj.palaceIndex === p.index;
         const starLabel = p.majorStars.slice(0, 2).map(s => s.name).join('·') || (chart ? '空' : p.earthlyBranch);
         const firstMut = p.majorStars.find(s => s.mutagen)?.mutagen || p.minorStars.find(s => s.mutagen)?.mutagen;
         const firstYMut = p.majorStars.map(s => yearlyMutByStar[s.name]).find(Boolean) || p.minorStars.map(s => yearlyMutByStar[s.name]).find(Boolean);
-        const brightRadius = p.majorStars[0]?.brightness === '庙' ? 4.2 : p.majorStars[0]?.brightness === '旺' ? 3.5 : 2.6;
 
         return h('g', {
           key: p.index,
-          role: chart ? 'button' : undefined,
-          tabIndex: chart ? 0 : undefined,
+          className: interactive ? 'zm-chart-control' : undefined,
+          role: interactive ? 'button' : undefined,
+          tabIndex: interactive ? 0 : undefined,
           'aria-label': `${p.name} ${starLabel}`,
-          style: { cursor: chart ? 'pointer' : 'default' },
-          onClick: chart && onSelectPalace ? () => onSelectPalace(p.index) : undefined,
-          onKeyDown: chart && onSelectPalace ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(p.index); } } : undefined,
+          'aria-pressed': interactive ? isSelf : undefined,
+          style: { cursor: interactive ? 'pointer' : 'default' },
+          onClick: interactive ? () => onSelectPalace(p.index) : undefined,
+          onKeyDown: interactive ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(p.index); } } : undefined,
         },
           h('path', {
             d: makeSectorPath(cx, cy, deg, 14.2, innerR, outerR),
-            fill: isSelf ? pal.selFill : isTrine ? pal.trineFill : pal.wedgeIdle,
-            stroke: isYearly ? pal.cyan : isSelf ? pal.selStroke : isTrine ? pal.trineStroke : pal.wedgeBorder,
+            fill: isSelf ? pal.selFill : isOpposite ? pal.goldSoft : isTrine ? pal.trineFill : pal.wedgeIdle,
+            stroke: isSelf || isOpposite ? pal.selStroke : isYearly ? pal.cyan : isTrine ? pal.trineStroke : pal.wedgeBorder,
             strokeWidth: (isSelf || isYearly) ? 2.2 : isTrine ? 1.6 : 1,
+            strokeDasharray: isOpposite ? '4 3' : undefined,
           }),
-          // Glowing Star-Dot scaled by brightness
           h('circle', {
             cx: (cx + Math.cos(rad) * 116).toFixed(1),
             cy: (cy + Math.sin(rad) * 116).toFixed(1),
-            r: p.majorStars.length ? brightRadius : 1.8,
+            r: p.majorStars.length ? 3.5 : 1.8,
             fill: isSelf ? pal.goldBright : (p.majorStars.length ? pal.purple : pal.inkMuted),
             filter: p.majorStars.length ? `url(#${glowId})` : undefined,
           }),
@@ -1038,7 +1061,7 @@ function createStageVisuals(React) {
             fill: p.isSoulPalace ? pal.gold : isYearly ? pal.cyan : pal.inkSub,
             fontSize: 10,
             fontWeight: (p.isSoulPalace || isYearly) ? 800 : 600,
-          }, p.name),
+          }, isYearly ? `${p.name}·流命` : p.name),
           // Natal Mutagen Gem
           firstMut ? h('g', null,
             h('circle', {
@@ -1073,12 +1096,20 @@ function createStageVisuals(React) {
               fontWeight: 800,
             }, firstYMut),
           ) : null,
+          interactive ? h('path', {
+            className: 'zm-chart-focus-ring',
+            d: makeSectorPath(cx, cy, deg, 12.6, innerR + 4, outerR - 4),
+            'aria-hidden': true,
+          }) : null,
         );
       }),
 
       // Inner Polaris Star-Chart Core + Tri-Aspect Constellation Laser Geometry
       h('circle', { cx, cy, r: innerR - 2, fill: pal.surface, stroke: pal.gold, strokeWidth: 1.8 }),
-      h('circle', { cx, cy, r: innerR - 14, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.9, strokeDasharray: '2 4' }),
+      h('circle', {
+        cx, cy, r: innerR - 14, fill: 'none', stroke: pal.goldFaint, strokeWidth: 0.9, strokeDasharray: '2 4',
+        className: 'zm-decorative-orbit', style: { '--zm-orbit-direction': 'reverse' }, 'aria-hidden': true, pointerEvents: 'none',
+      }),
       // Luminous Tri-Aspect Triangle (三合)
       h('polygon', {
         points: `${pSelf.x.toFixed(1)},${pSelf.y.toFixed(1)} ${pT1.x.toFixed(1)},${pT1.y.toFixed(1)} ${pT2.x.toFixed(1)},${pT2.y.toFixed(1)}`,
@@ -1119,183 +1150,43 @@ function createStageVisuals(React) {
   }
 
   // =========================================================================
-  // 6. HEPAN BINARY-STAR GRAVITATIONAL ORRERY (420x360) — Idle + Active!
+  // 6. HEPAN FORTUNE PERIOD TIMELINE
   // =========================================================================
-  function HepanOrrerySvg({ chart, isDark = true }) {
+  function HepanTimeline30ySvg({ timeline30y, nameA, nameB, isDark = true }) {
     const pal = getPalette(isDark);
-    const cx = 210;
-    const cy = 180;
-    const score = chart?.overallScore ?? 86;
-    const accent = score >= 82 ? pal.pink : score >= 70 ? pal.gold : pal.blue;
-    const ringR = 52;
-    const circ = 2 * Math.PI * ringR;
-    const dashOff = circ * (1 - score / 100);
-    const glowId = `zm-hp-glow-${pal.key}`;
-    const elements = ['木', '火', '土', '金', '水'];
+    const { from, toExclusive, personA, personB } = timeline30y;
+    const left = 36;
+    const right = 402;
+    const first = Date.parse(from);
+    const last = Date.parse(toExclusive);
+    const xAt = date => left + ((Math.max(first, Math.min(last, Date.parse(date))) - first) / (last - first)) * (right - left);
+    const startYear = Number(from.slice(0, 4));
 
-    const renderElementMoons = (ox, oy, pctMap, tiltDeg) => elements.map((el, i) => {
-      const a = ((i * 72 - 90 + tiltDeg) * Math.PI) / 180;
-      const mx = ox + Math.cos(a) * 56;
-      const my = oy + Math.sin(a) * 34;
-      const pct = pctMap?.[el] ?? 20;
-      const r = 3.2 + Math.min(4.6, pct / 9);
-      return h('circle', {
-        key: `${ox}-${el}`,
-        cx: mx.toFixed(1), cy: my.toFixed(1), r: r.toFixed(1),
-        fill: pal.el[el].fg,
-        opacity: 0.9,
-      });
-    });
-
-    // 6-petal harmonic lotus around central resonance core
-    const dims = chart?.dimensions || [
-      { score: 85 }, { score: 80 }, { score: 78 }, { score: 84 }, { score: 82 }, { score: 88 },
-    ];
-    const lotusPts = dims.slice(0, 6).map((d, i) => {
-      const a = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
-      const rr = 64 + ((d.score || 75) / 100) * 34;
-      return `${(cx + Math.cos(a) * rr).toFixed(1)},${(cy + Math.sin(a) * rr).toFixed(1)}`;
-    }).join(' ');
-
-    return h('svg', {
-      viewBox: '0 0 420 360',
-      width: '100%',
-      role: 'img',
-      'aria-label': chart ? `双星引力合盘图 ${score}分 ${chart.grade}` : '双星引力合盘星云',
-      style: { display: 'block', width: '100%', height: 'auto' },
-    },
-      h('defs', null,
-        h('filter', { id: glowId, x: '-30%', y: '-30%', width: '160%', height: '160%' },
-          h('feGaussianBlur', { stdDeviation: isDark ? 4.5 : 2, result: 'b' }),
-          h('feMerge', null, h('feMergeNode', { in: 'b' }), h('feMergeNode', { in: 'SourceGraphic' })),
-        ),
-        h('radialGradient', { id: `zm-hp-a-${pal.key}`, cx: '38%', cy: '32%', r: '66%' },
-          h('stop', { offset: '0%', stopColor: isDark ? '#93c5fd' : '#dbeafe' }),
-          h('stop', { offset: '55%', stopColor: isDark ? '#2563eb' : '#60a5fa' }),
-          h('stop', { offset: '100%', stopColor: isDark ? '#1e3a8a' : '#1d4ed8' }),
-        ),
-        h('radialGradient', { id: `zm-hp-b-${pal.key}`, cx: '38%', cy: '32%', r: '66%' },
-          h('stop', { offset: '0%', stopColor: isDark ? '#fbcfe8' : '#fce7f3' }),
-          h('stop', { offset: '55%', stopColor: isDark ? '#db2777' : '#f472b6' }),
-          h('stop', { offset: '100%', stopColor: isDark ? '#831843' : '#be185d' }),
-        ),
-      ),
-
-      // Outer Cosmic Resonance Halo + 6-Axis Harmonic Polygon
-      h('circle', { cx, cy, r: 146, fill: 'none', stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '4 6', className: 'zm-spin-slow' }),
-      h('polygon', {
-        points: lotusPts,
-        fill: isDark ? 'rgba(244,114,182,0.10)' : 'rgba(190,24,93,0.08)',
-        stroke: accent,
-        strokeWidth: 1.3,
-        strokeDasharray: '3 3',
+    const row = (periods, name, y, accent, key) => h('g', { key },
+      h('text', { x: left, y: y - 7, fill: pal.inkSub, fontSize: 11, fontWeight: 700 }, name),
+      h('rect', { x: left, y, width: right - left, height: 24, rx: 5, fill: pal.surface, stroke: pal.goldFaint }),
+      ...periods.map(period => {
+        const x = xAt(period.startDate);
+        const width = xAt(period.endExclusive) - x;
+        return h('g', { key: period.startDate },
+          h('title', null, `${period.ganZhi} · ${period.startDate} 至 ${period.endExclusive} 交下一运`),
+          h('rect', { x, y, width, height: 24, rx: 4, fill: accent, fillOpacity: 0.22, stroke: accent }),
+          width >= 23 ? h('text', { x: x + width / 2, y: y + 16, fill: pal.ink, textAnchor: 'middle', fontWeight: 700, fontSize: 11 }, period.ganZhi) : null,
+        );
       }),
-
-      // Dual Tilted 3D Orbital Rings
-      h('ellipse', { cx: 78, cy, rx: 56, ry: 34, fill: 'none', stroke: pal.blue, strokeWidth: 1.2, opacity: 0.45, transform: `rotate(-18 78 ${cy})` }),
-      h('ellipse', { cx: 342, cy, rx: 56, ry: 34, fill: 'none', stroke: pal.pink, strokeWidth: 1.2, opacity: 0.45, transform: `rotate(18 342 ${cy})` }),
-
-      // Twin Intertwining Infinity Gravitational Ribbons
-      h('path', {
-        d: `M 78 ${cy} C 134 ${cy - 98}, 286 ${cy + 98}, 342 ${cy}`,
-        fill: 'none', stroke: pal.goldBright, strokeWidth: 2.4, strokeDasharray: '7 5', className: 'zm-dash-flow', filter: `url(#${glowId})`,
-      }),
-      h('path', {
-        d: `M 342 ${cy} C 286 ${cy - 98}, 134 ${cy + 98}, 78 ${cy}`,
-        fill: 'none', stroke: accent, strokeWidth: 2.4, strokeDasharray: '7 5', className: 'zm-dash-flow',
-      }),
-
-      // Five-Element Satellite Moons around both planets
-      ...renderElementMoons(78, cy, chart?.personA?.wuxingPct, -18),
-      ...renderElementMoons(342, cy, chart?.personB?.wuxingPct, 18),
-
-      // Planet A (Sapphire Orb)
-      h('circle', { cx: 78, cy, r: 42, fill: 'none', stroke: pal.blue, strokeWidth: 1.2, opacity: 0.45, className: 'zm-aura' }),
-      h('circle', { cx: 78, cy, r: 35, fill: `url(#zm-hp-a-${pal.key})`, stroke: pal.blue, strokeWidth: 1.6 }),
-      h('text', { x: 78, y: cy - 3, textAnchor: 'middle', fill: '#ffffff', fontSize: 13, fontWeight: 800 }, chart ? chart.personA.name.slice(0, 4) : '乾 · 甲'),
-      h('text', { x: 78, y: cy + 14, textAnchor: 'middle', fill: 'rgba(255,255,255,0.90)', fontSize: 10.5, fontWeight: 700 }, chart ? `${chart.personA.dayMaster}` : '日主星'),
-
-      // Planet B (Rose-Gold Orb)
-      h('circle', { cx: 342, cy, r: 42, fill: 'none', stroke: pal.pink, strokeWidth: 1.2, opacity: 0.45, className: 'zm-aura' }),
-      h('circle', { cx: 342, cy, r: 35, fill: `url(#zm-hp-b-${pal.key})`, stroke: pal.pink, strokeWidth: 1.6 }),
-      h('text', { x: 342, y: cy - 3, textAnchor: 'middle', fill: '#ffffff', fontSize: 13, fontWeight: 800 }, chart ? chart.personB.name.slice(0, 4) : '坤 · 乙'),
-      h('text', { x: 342, y: cy + 14, textAnchor: 'middle', fill: 'rgba(255,255,255,0.90)', fontSize: 10.5, fontWeight: 700 }, chart ? `${chart.personB.dayMaster}` : '日主星'),
-
-      // Central Resonance Core with Radial Score Arc
-      h('circle', { cx, cy, r: ringR + 7, fill: pal.surface, stroke: pal.goldLine, strokeWidth: 1.3 }),
-      h('circle', { cx, cy, r: ringR, fill: 'none', stroke: pal.goldFaint, strokeWidth: 6 }),
-      h('circle', {
-        cx, cy, r: ringR,
-        fill: 'none',
-        stroke: accent,
-        strokeWidth: 6,
-        strokeLinecap: 'round',
-        strokeDasharray: circ.toFixed(1),
-        strokeDashoffset: chart ? dashOff.toFixed(1) : (circ * 0.25).toFixed(1),
-        transform: `rotate(-90 ${cx} ${cy})`,
-        filter: `url(#${glowId})`,
-        style: { transition: 'stroke-dashoffset 0.7s ease' },
-      }),
-      chart ? h(React.Fragment, null,
-        h('text', { x: cx, y: cy + 3, textAnchor: 'middle', fill: pal.ink, fontSize: 30, fontWeight: 800 }, String(score)),
-        h('text', { x: cx, y: cy + 23, textAnchor: 'middle', fill: accent, fontSize: 11.5, fontWeight: 800 }, chart.grade),
-      ) : h(React.Fragment, null,
-        h('text', { x: cx, y: cy + 4, textAnchor: 'middle', fill: pal.gold, fontSize: 18, fontWeight: 800 }, '合盘'),
-        h('text', { x: cx, y: cy + 22, textAnchor: 'middle', fill: pal.inkMuted, fontSize: 10 }, '双星共振'),
-      ),
     );
-  }
 
-  // 30-Year Dual Fortune Sync Wave Chart (Theme-aware)
-  function HepanTimeline30ySvg({ timeline30y = [], nameA = '甲方', nameB = '乙方', isDark = true }) {
-    if (timeline30y.length < 2) return null;
-    const pal = getPalette(isDark);
-    const w = 380;
-    const hBox = 190;
-    const padL = 24;
-    const padR = 16;
-    const padT = 26;
-    const padB = 30;
-    const innerW = w - padL - padR;
-    const innerH = hBox - padT - padB;
-
-    const xAt = i => padL + (i / (timeline30y.length - 1)) * innerW;
-    const yAt = sc => padT + innerH - ((Math.max(40, Math.min(100, sc)) - 40) / 60) * innerH;
-    const pathFor = key => timeline30y.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i).toFixed(1)} ${yAt(pt[key]).toFixed(1)}`).join(' ');
-
-    return h('svg', {
-      viewBox: `0 0 ${w} ${hBox}`,
-      width: '100%',
-      role: 'img',
-      'aria-label': '未来30年双人大运同步共振曲线',
-      style: { display: 'block', width: '100%', height: 'auto' },
-    },
-      ...[50, 70, 90].map(v => h('line', {
-        key: `g-${v}`,
-        x1: padL, y1: yAt(v), x2: w - padR, y2: yAt(v),
-        stroke: pal.goldFaint, strokeWidth: 1, strokeDasharray: '3 3',
-      })),
-      ...timeline30y.map((pt, i) => pt.phase === '双星共旺黄金期' ? h('rect', {
-        key: `gold-${pt.year}`,
-        x: xAt(i) - 14, y: padT, width: 28, height: innerH, rx: 5,
-        fill: pal.goldSoft,
-      }) : null),
-      h('path', { d: pathFor('scoreA'), fill: 'none', stroke: pal.blue, strokeWidth: 2.6, strokeLinejoin: 'round' }),
-      h('path', { d: pathFor('scoreB'), fill: 'none', stroke: pal.pink, strokeWidth: 2.6, strokeLinejoin: 'round' }),
-      ...timeline30y.map((pt, i) => h('g', { key: pt.year },
-        h('circle', { cx: xAt(i), cy: yAt(pt.scoreA), r: 3.4, fill: pal.blue }),
-        h('circle', { cx: xAt(i), cy: yAt(pt.scoreB), r: 3.4, fill: pal.pink }),
-        i % 2 === 0 || i === timeline30y.length - 1 ? h('text', {
-          x: xAt(i), y: hBox - 9,
-          textAnchor: 'middle', fill: pal.inkMuted, fontSize: 9.5, fontWeight: 600,
-        }, String(pt.year)) : null,
-      )),
-      h('circle', { cx: padL + 4, cy: 12, r: 3.5, fill: pal.blue }),
-      h('text', { x: padL + 12, y: 15.5, fill: pal.inkSub, fontSize: 10, fontWeight: 700 }, nameA),
-      h('circle', { cx: padL + 72, cy: 12, r: 3.5, fill: pal.pink }),
-      h('text', { x: padL + 80, y: 15.5, fill: pal.inkSub, fontSize: 10, fontWeight: 700 }, nameB),
-      h('rect', { x: w - 98, y: 7, width: 12, height: 9, rx: 2, fill: pal.goldSoft, stroke: pal.gold, strokeWidth: 0.8 }),
-      h('text', { x: w - 82, y: 15.5, fill: pal.gold, fontSize: 10, fontWeight: 700 }, '双星共旺期'),
+    return h('svg', { viewBox: '0 0 420 170', width: '100%', role: 'img', 'aria-label': '未来三十年大运起止日期对照' },
+      row(personA, nameA, 42, pal.blue, 'a'),
+      row(personB, nameB, 92, pal.pink, 'b'),
+      ...[0, 5, 10, 15, 20, 25, 30].map(offset => {
+        const year = startYear + offset;
+        const x = xAt(`${year}-01-01`);
+        return h('g', { key: year },
+          h('line', { x1: x, y1: 120, x2: x, y2: 125, stroke: pal.goldLine }),
+          h('text', { x, y: 140, textAnchor: 'middle', fill: pal.inkMuted, fontSize: 9.5 }, year),
+        );
+      }),
     );
   }
 
@@ -1303,19 +1194,20 @@ function createStageVisuals(React) {
   // 7. XUANKONG NINE FLYING STARS OCTAGONAL LUOPAN ALTAR (420x420)
   // =========================================================================
   const FLYING_STAR_INFO = {
-    1: { name: '一白贪狼', short: '一白', tag: '桃花贵人', luck: '吉', colorD: '#60a5fa', colorL: '#1d4ed8', tip: '主贵人、桃花与人际顺遂，宜保持明亮洁净，可配水培绿植或蓝色饰品。' },
-    2: { name: '二黑巨门', short: '二黑', tag: '病符宜静', luck: '凶', colorD: '#fbbf24', colorL: '#b45309', tip: '主健康疲惫与脾胃提醒，忌堆放杂物与红黄燥色，宜安静整洁并用铜/金属器物泄土。' },
-    3: { name: '三碧禄存', short: '三碧', tag: '防口舌', luck: '凶', colorD: '#34d399', colorL: '#047857', tip: '易生争执急躁，忌过度摆放绿植，宜用暖色台灯或红色点缀化木生火。' },
-    4: { name: '四绿文曲', short: '四绿', tag: '文昌学业', luck: '大吉', colorD: '#10b981', colorL: '#059669', tip: '书房办公绝佳方位！极利考试学习、创意策划与文书升职，宜摆富贵竹或文具。' },
-    5: { name: '五黄廉贞', short: '五黄', tag: '忌动土', luck: '忌动', colorD: '#fb7185', colorL: '#c81e3a', tip: '宜静不宜动，忌在此方装修敲打或摆红色/嘈杂电器，宜保持素净或放金属风铃/铜饰化解。' },
-    6: { name: '六白武曲', short: '六白', tag: '偏财晋升', luck: '吉', colorD: '#fde047', colorL: '#9a6700', tip: '利偏财、出差远行与职场晋升，宜整洁敞亮，可用黄色或陶瓷摆件土生金旺财。' },
-    7: { name: '七赤破军', short: '七赤', tag: '防破耗', luck: '慎', colorD: '#cbd5e1', colorL: '#475569', tip: '留意言辞分寸与财务合同核对，宜保持平和收敛，可用清澈水景或蓝色饰物泄金。' },
-    8: { name: '八白左辅', short: '八白', tag: '正财稳进', luck: '大吉', colorD: '#f59e0b', colorL: '#b45309', tip: '经典正财位！宜常开启灯光保持人气流通，摆陶瓷/黄水晶/暖灯最聚稳健财气。' },
-    9: { name: '九紫右弼', short: '九紫', tag: '九运当旺', luck: '大吉', colorD: '#f472b6', colorL: '#be185d', tip: '下元九运（2024–2043）第一当旺大吉星！主大财、喜庆与爆红机遇，宜红紫暖光与生机绿植催旺。' },
+    1: { name: '一白贪狼', short: '一白', tag: '水', colorD: '#60a5fa', colorL: '#1d4ed8' },
+    2: { name: '二黑巨门', short: '二黑', tag: '土', colorD: '#fbbf24', colorL: '#b45309' },
+    3: { name: '三碧禄存', short: '三碧', tag: '木', colorD: '#34d399', colorL: '#047857' },
+    4: { name: '四绿文曲', short: '四绿', tag: '木', colorD: '#10b981', colorL: '#059669' },
+    5: { name: '五黄廉贞', short: '五黄', tag: '土', colorD: '#fb7185', colorL: '#c81e3a' },
+    6: { name: '六白武曲', short: '六白', tag: '金', colorD: '#fde047', colorL: '#9a6700' },
+    7: { name: '七赤破军', short: '七赤', tag: '金', colorD: '#cbd5e1', colorL: '#475569' },
+    8: { name: '八白左辅', short: '八白', tag: '土', colorD: '#f59e0b', colorL: '#b45309' },
+    9: { name: '九紫右弼', short: '九紫', tag: '火', colorD: '#f472b6', colorL: '#be185d' },
   };
 
   function getFlyingStarsForYear(year) {
-    const centerStar = (((2026 - year) % 9) + 9) % 9 + 1;
+    // 《协纪辨方书·三元年九星入中宫》以康熙二十三年甲子为上元一白。
+    const centerStar = ((1684 - year) % 9 + 9) % 9 + 1;
     const flyOrder = [5, 6, 7, 8, 9, 1, 2, 3, 4];
     const starByPalace = {};
     flyOrder.forEach((pNum, offset) => {
@@ -1329,7 +1221,7 @@ function createStageVisuals(React) {
     return gridMeta.map(([pNum, dir, tri, row, col]) => {
       const starNum = starByPalace[pNum];
       const info = FLYING_STAR_INFO[starNum];
-      return { palaceNum: pNum, direction: dir, trigram: tri, row, col, starNum, ...info };
+      return { palaceNum: pNum, direction: dir, trigram: tri, row, col, starNum, flyStep: flyOrder.indexOf(pNum), ...info };
     });
   }
 
@@ -1345,12 +1237,13 @@ function createStageVisuals(React) {
     return h('svg', {
       viewBox: '0 0 420 420',
       width: '100%',
-      role: 'img',
+      role: onSelectPalace ? 'group' : 'img',
       'aria-label': `${year} 年玄空流年九宫飞星罗盘`,
       style: { display: 'block', width: '100%', height: 'auto', aspectRatio: '1 / 1' },
     },
-      // Outer Rotating Celestial Ring
-      h('g', { className: 'zm-spin-slow' },
+      h(CompassOrbit, { color: pal.goldBright }),
+      // Fixed tick marks follow the grid's headings.
+      h('g', { 'aria-hidden': true },
         h('circle', { cx, cy, r: 202, fill: 'none', stroke: pal.goldLine, strokeWidth: 1.3 }),
         ...Array.from({ length: 48 }, (_, i) => {
           const rad = (i * 7.5 * Math.PI) / 180;
@@ -1394,26 +1287,32 @@ function createStageVisuals(React) {
         const x = origin + cell.col * (cellSize + gap);
         const y = origin + cell.row * (cellSize + gap);
         const isSel = selectedPalaceNum === cell.palaceNum;
-        const isBigGood = cell.luck === '大吉';
         const stCol = isDark ? cell.colorD : cell.colorL;
         return h('g', {
           key: cell.palaceNum,
-          role: 'button',
-          tabIndex: 0,
+          className: onSelectPalace ? 'zm-chart-control' : undefined,
+          role: onSelectPalace ? 'button' : undefined,
+          tabIndex: onSelectPalace ? 0 : undefined,
           'aria-label': `${cell.direction} ${cell.name} ${cell.tag}`,
-          style: { cursor: 'pointer' },
-          onClick: () => onSelectPalace && onSelectPalace(cell.palaceNum),
-          onKeyDown: e => { if ((e.key === 'Enter' || e.key === ' ') && onSelectPalace) { e.preventDefault(); onSelectPalace(cell.palaceNum); } },
+          'aria-pressed': onSelectPalace ? isSel : undefined,
+          style: { cursor: onSelectPalace ? 'pointer' : 'default' },
+          onClick: onSelectPalace ? () => onSelectPalace(cell.palaceNum) : undefined,
+          onKeyDown: onSelectPalace ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPalace(cell.palaceNum); } } : undefined,
         },
           h('rect', {
             x, y, width: cellSize, height: cellSize, rx: 11,
-            fill: isSel ? pal.selFill : isBigGood ? pal.goodFill : pal.wedgeIdle,
-            stroke: isSel ? pal.selStroke : isBigGood ? pal.goodStroke : pal.wedgeBorder,
-            strokeWidth: isSel ? 2.4 : isBigGood ? 1.6 : 1.1,
+            fill: isSel ? pal.selFill : pal.wedgeIdle,
+            stroke: isSel ? pal.selStroke : pal.wedgeBorder,
+            strokeWidth: isSel ? 2.4 : 1.1,
           }),
           h('text', { x: x + cellSize / 2, y: y + 16, textAnchor: 'middle', fill: pal.inkMuted, fontSize: 9, fontWeight: 700 }, cell.direction),
           h('text', { x: x + cellSize / 2, y: y + 39, textAnchor: 'middle', fill: stCol, fontSize: 18, fontWeight: 800 }, cell.short),
           h('text', { x: x + cellSize / 2, y: y + 56, textAnchor: 'middle', fill: pal.inkSub, fontSize: 9, fontWeight: 700 }, cell.tag),
+          onSelectPalace ? h('rect', {
+            className: 'zm-chart-focus-ring',
+            x: x + 4, y: y + 4, width: cellSize - 8, height: cellSize - 8, rx: 7,
+            'aria-hidden': true,
+          }) : null,
         );
       }),
     );
@@ -1421,13 +1320,13 @@ function createStageVisuals(React) {
 
   return {
     getPalette,
-    CelestialBackdropSvg,
+    ChartCanvas,
     BaziOrrerySvg,
     BaZhaiCompassSvg,
     QimenArmillarySvg,
     MeihuaResonatorSvg,
+    getMeihuaStageContext,
     ZiweiStarWheelSvg,
-    HepanOrrerySvg,
     HepanTimeline30ySvg,
     FlyingStarsAltarSvg,
     getFlyingStarsForYear,

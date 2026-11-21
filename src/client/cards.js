@@ -1,6 +1,6 @@
 function createCompanionCards(React, Visuals) {
   const h = React.createElement;
-  const { ZhimingErrorBoundary, LuopanEmblem } = Visuals;
+  const { ZhimingErrorBoundary, LuopanEmblem, DeepSeekButton } = Visuals;
 
   function useProjectionState(useProjectionProp, fallbackFace) {
     const fromStandard = typeof useProjectionProp === 'function' ? useProjectionProp('zhiming') : undefined;
@@ -26,7 +26,7 @@ function createCompanionCards(React, Visuals) {
   }
 
   function renderMiniStrip(chart) {
-    if (!chart) return null;
+    if (!chart?.rulesVersion) return null;
     if (chart.system === 'bazi' && Array.isArray(chart.pillars)) {
       return h('div', { className: 'zm-chat-mini-strip' },
         ...chart.pillars.map(p => {
@@ -37,9 +37,6 @@ function createCompanionCards(React, Visuals) {
             style: { background: st.soft, color: st.color, borderColor: st.border },
           }, `${p.label} ${p.ganZhi}`);
         }),
-        chart.wuxing?.favorable?.length
-          ? h('span', { className: 'zm-chip' }, `喜用：${chart.wuxing.favorable.join('、')}`)
-          : null,
       );
     }
     if (chart.system === 'qimen' && chart.meta) {
@@ -54,7 +51,7 @@ function createCompanionCards(React, Visuals) {
         h('span', { className: 'zm-chip', style: { color: 'var(--zm-red)', borderColor: 'rgba(239,68,68,0.45)' } }, `本：${chart.hexagrams.main.symbol} ${chart.hexagrams.main.fullName}`),
         h('span', { className: 'zm-chip' }, `互：${chart.hexagrams.mutual.fullName}`),
         h('span', { className: 'zm-chip', style: { color: 'var(--zm-gold)', borderColor: 'rgba(201,151,59,0.45)' } }, `变：${chart.hexagrams.changed.symbol} ${chart.hexagrams.changed.fullName}`),
-        h('span', { className: 'zm-chip' }, `${chart.tiYong?.overallVerdict || ''} (${chart.tiYong?.overallScore || ''})`),
+        h('span', { className: 'zm-chip' }, chart.tiYong?.mainRelation?.relation),
       );
     }
     if (chart.system === 'ziwei' && chart.meta) {
@@ -66,62 +63,14 @@ function createCompanionCards(React, Visuals) {
     }
     if (chart.system === 'hepan') {
       return h('div', { className: 'zm-chat-mini-strip' },
-        h('span', { className: 'zm-chip', style: { color: 'var(--zm-pink)', borderColor: 'rgba(236,72,153,0.45)' } }, `${chart.overallScore}分 · ${chart.grade}`),
-        ...(chart.dimensions || []).slice(0, 3).map(d => h('span', { key: d.key, className: 'zm-chip' }, `${d.label} ${d.score}`)),
+        h('span', { className: 'zm-chip', style: { color: 'var(--zm-pink)', borderColor: 'rgba(236,72,153,0.45)' } }, chart.relationLabel),
+        ...(chart.dimensions || []).slice(0, 3).map(d => h('span', { key: d.key, className: 'zm-chip' }, d.label)),
       );
     }
     return null;
   }
 
-  // 1. Composer Dock Pill (calm idle emblem; async ask feedback)
-  function ZhimingComposerDock(props) {
-    const t = props.t || (k => ZH_DICT[k] || k);
-    const projection = useProjectionState(props.useProjection, props.projectionFace);
-    const activeChart = projection?.charts?.find(c => c.id === projection.activeChartId) || projection?.charts?.[0] || null;
-    const [sending, setSending] = React.useState(false);
-    const [errMsg, setErrMsg] = React.useState('');
-
-    const askCurrent = async () => {
-      if (!activeChart || sending) return;
-      setSending(true);
-      setErrMsg('');
-      try {
-        const res = await props.sendPrompt(`请读取我当前知命罗盘中的「${activeChart.title}」（盘面ID: ${activeChart.id}），用新手白话为我解读它的核心含义和实用建议。`);
-        if (res?.ok === false) setErrMsg(res.error || t('status.syncError'));
-      } catch (e) {
-        setErrMsg(e?.message || t('status.syncError'));
-      } finally {
-        setSending(false);
-      }
-    };
-
-    return h(ZhimingErrorBoundary, { fallbackText: t('error.boundary'), resetText: t('error.reset') },
-      h('div', { className: 'zm-dock-wrap' },
-        h('button', {
-          type: 'button',
-          className: 'zm-dock-main',
-          onClick: () => props.openStudio(activeChart?.system, activeChart?.id),
-        },
-          h(LuopanEmblem, { size: 18, spin: false }),
-          h('span', { className: 'zm-dock-text' }, errMsg || (activeChart ? `${t('brand.short')} · ${activeChart.title}` : t('dock.empty'))),
-        ),
-        activeChart ? h('button', {
-          type: 'button',
-          className: 'zm-btn zm-btn-gold zm-btn-sm',
-          style: { padding: '2px 8px', fontSize: 11 },
-          disabled: sending,
-          onClick: askCurrent,
-        }, sending ? t('status.sending') : t('dock.ask')) : h('button', {
-          type: 'button',
-          className: 'zm-btn zm-btn-sm',
-          style: { padding: '2px 8px', fontSize: 11 },
-          onClick: () => props.openStudio('tutorial', null),
-        }, t('dock.open')),
-      ),
-    );
-  }
-
-  // 2. Inline Chat Tool Card (`tool.call.toolview` for `zhiming_chart`)
+  // Inline Chat Tool Card (`tool.call.toolview` for `zhiming_chart`)
   function ZhimingChartToolCard(props) {
     const t = props.t || (k => ZH_DICT[k] || k);
     const isResult = props.phase === 'result';
@@ -155,7 +104,7 @@ function createCompanionCards(React, Visuals) {
             h(LuopanEmblem, { size: 22, spin: !isResult }),
             h('div', { style: { minWidth: 0 } },
               h('div', { style: { fontWeight: 700, fontSize: 13 } }, chart ? chart.title : t('tool.charting')),
-              chart ? h('div', { className: 'zm-muted' }, chart.subtitle) : null,
+              chart ? h('div', { className: 'zm-muted' }, chart.rulesVersion ? chart.subtitle : t('status.recastOldChart')) : null,
             ),
           ),
           chart ? h('button', {
@@ -169,7 +118,7 @@ function createCompanionCards(React, Visuals) {
     );
   }
 
-  // 3. Inline Chat Tool Card (`tool.call.toolview` for `zhiming_read`)
+  // Inline Chat Tool Card (`tool.call.toolview` for `zhiming_read`)
   function ZhimingReadToolCard(props) {
     const t = props.t || (k => ZH_DICT[k] || k);
     const done = props.phase === 'result';
@@ -187,13 +136,13 @@ function createCompanionCards(React, Visuals) {
             type: 'button',
             className: 'zm-btn zm-btn-sm',
             onClick: () => props.openStudio(null, null),
-          }, t('dock.open')),
+          }, t('action.openStudio')),
         ),
       ),
     );
   }
 
-  // 4. Inline Chat Command Card (`conversation.chat.commandview` for `/zhiming`)
+  // Inline Chat Command Card (`conversation.chat.commandview` for `/zhiming`)
   function ZhimingCommandCard(props) {
     const t = props.t || (k => ZH_DICT[k] || k);
     const [sending, setSending] = React.useState(false);
@@ -259,21 +208,20 @@ function createCompanionCards(React, Visuals) {
             h(LuopanEmblem, { size: 20, spin: !outcome }),
             h('div', null,
               h('div', { style: { fontWeight: 700, fontSize: 12.5 } }, headingText),
-              chart ? h('div', { className: 'zm-muted' }, chart.subtitle) : null,
+              chart ? h('div', { className: 'zm-muted' }, chart.rulesVersion ? chart.subtitle : t('status.recastOldChart')) : null,
             ),
           ),
-          chart ? h('div', { style: { display: 'flex', gap: 5 } },
+          chart ? h('div', { className: 'zm-button-group' },
             h('button', {
               type: 'button',
               className: 'zm-btn zm-btn-sm',
               onClick: () => props.openStudio(chart.system, chart.id),
-            }, t('dock.open')),
-            h('button', {
-              type: 'button',
-              className: 'zm-btn zm-btn-gold zm-btn-sm',
+            }, t('action.openStudio')),
+            h(DeepSeekButton, {
+              primary: true,
               disabled: sending,
               onClick: askFromCard,
-            }, sending ? t('status.sending') : t('dock.ask')),
+            }, sending ? t('status.sending') : t('action.askDeepSeek')),
           ) : null,
         ),
         chart ? renderMiniStrip(chart) : null,
@@ -282,7 +230,7 @@ function createCompanionCards(React, Visuals) {
     );
   }
 
-  // 5. Right Sidebar Dynamic Tab Title
+  // Right Sidebar Dynamic Tab Title
   function ZhimingTabTitle(props) {
     const t = props.t || (k => ZH_DICT[k] || k);
     const projection = useProjectionState(props.useProjection, props.projectionFace);
@@ -294,7 +242,6 @@ function createCompanionCards(React, Visuals) {
   }
 
   return {
-    ZhimingComposerDock,
     ZhimingChartToolCard,
     ZhimingReadToolCard,
     ZhimingCommandCard,

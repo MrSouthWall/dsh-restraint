@@ -1,5 +1,12 @@
 function createPluginEntry(React) {
-  const Visuals = { ...createVisuals(React), ...createStageVisuals(React) };
+  const h = React.createElement;
+  const Visuals = {
+    ...createVisuals(React),
+    ...createStageVisuals(React),
+    ...createDateTimeFields(React),
+    ChoiceMenu: createChoiceMenu(React),
+  };
+  Visuals.BirthFields = createBirthFields(React, Visuals);
   const Views = {
     BaziView: createBaziView(React, Visuals),
     QimenView: createQimenView(React, Visuals),
@@ -8,12 +15,45 @@ function createPluginEntry(React) {
     HepanView: createHepanView(React, Visuals),
     TutorialView: createTutorialView(React, Visuals),
   };
-  const ZhimingStudio = createStudioComponent(React, Visuals, Views);
+  const ZhimingStudio = createStudioComponent(React, Visuals, Views, createBirthProfileStore());
   const Cards = createCompanionCards(React, Visuals);
 
   const PLUGIN_ID = '@local/dsh-zhiming';
   const TAB_KIND = 'zhiming';
+  const WORKSPACE_SLOT = 'zhiming.workspace';
   const NS = 'zhiming';
+
+  function ZhimingSidebarIcon({ size = 20 }) {
+    return h('svg', {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 1.6,
+      strokeLinejoin: 'round',
+      'aria-hidden': true,
+    },
+      h('circle', { cx: 12, cy: 12, r: 8.75 }),
+      h('path', { d: 'M15.8 8.2 13.9 13.9 8.2 15.8 10.1 10.1Z' }),
+    );
+  }
+
+  function ZhimingWorkspace({ renderSlot }) {
+    return h('div', { className: 'zm-workspace' }, renderSlot(WORKSPACE_SLOT, {}));
+  }
+
+  function ZhimingWorkspaceBody(props) {
+    if (props.sessionId !== undefined) return h(ZhimingStudio, { ...props, key: props.sessionId });
+
+    return h('section', { className: 'zm-workspace-empty' },
+      h(Visuals.LuopanEmblem, { size: 44, spin: false }),
+      h('h1', null, props.t('tab.title')),
+      h('p', null, props.t('workspace.noSession')),
+      h('button', { type: 'button', className: 'zm-btn', onClick: props.onReturnToConversation },
+        props.t('workspace.openConversation')),
+    );
+  }
 
   function createLocalNavObservable() {
     let snapshot = { seq: 0, tab: null, chartId: null };
@@ -156,6 +196,33 @@ function createPluginEntry(React) {
         };
       };
 
+      // Use the native global panel list, then bind the workspace body to the current conversation.
+      ctx.inject(['layout'], scope => {
+        scope.effect(() => scope.slots.inject('main', function* () {
+          yield scope.slots.register({
+            name: 'main',
+            key: PLUGIN_ID,
+            children: { [WORKSPACE_SLOT]: { kind: 'single', scope: 'session-maybe' } },
+          }, ZhimingWorkspace);
+
+          yield scope.slots.register({
+            name: WORKSPACE_SLOT,
+            locale: NS,
+            inject: sessionId => ({
+              ...(sessionId === undefined ? {} : makeSessionHelpers(sessionId)),
+              onReturnToConversation: () => scope.layout.selectPanel(null),
+            }),
+          }, ZhimingWorkspaceBody);
+        }));
+
+        scope.effect(() => scope.slots.inject('sidebar.panellist', () => scope.slots.register({
+          name: 'sidebar.panellist',
+          id: PLUGIN_ID,
+          order: 15,
+          label: () => t('tab.title'),
+        }, ZhimingSidebarIcon)));
+      });
+
       // 1. Register Right Sidebar Tab Type + Body + Live Title
       ctx.inject(['sidebarRight', 'sidebarRightTabs'], scope => {
         scope.effect(() => scope.sidebarRightTabs.register({
@@ -193,16 +260,7 @@ function createPluginEntry(React) {
         }, Cards.ZhimingTabTitle)));
       });
 
-      // 2. Register Composer Dock Pill
-      ctx.effect(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
-        name: 'conversation.composer.dock',
-        id: 'dsh-zhiming-dock',
-        order: 8,
-        locale: NS,
-        inject: sessionId => makeSessionHelpers(sessionId),
-      }, Cards.ZhimingComposerDock)));
-
-      // 3. Register Custom Inline Chat Tool Views (`zhiming_chart` & `zhiming_read`)
+      // 2. Register Custom Inline Chat Tool Views (`zhiming_chart` & `zhiming_read`)
       ctx.effect(() => ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
         name: 'tool.call.toolview',
         key: 'zhiming_chart',
@@ -217,7 +275,7 @@ function createPluginEntry(React) {
         inject: sessionId => makeSessionHelpers(sessionId),
       }, Cards.ZhimingReadToolCard)));
 
-      // 4. Register Custom Inline Chat Command View (`/zhiming`)
+      // 3. Register Custom Inline Chat Command View (`/zhiming`)
       ctx.effect(() => ctx.slots.inject('conversation.chat.commandview', () => ctx.slots.register({
         name: 'conversation.chat.commandview',
         key: 'zhiming',

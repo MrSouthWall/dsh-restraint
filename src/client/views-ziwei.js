@@ -1,20 +1,11 @@
 function createZiweiView(React, Visuals) {
   const h = React.createElement;
-  const { CelestialBackdropSvg, ZiweiStarWheelSvg, ZiweiTriAspectSvg } = Visuals;
+  const { BirthFields, DeepSeekButton, ChartCanvas, ZiweiStarWheelSvg, ZiweiTriAspectSvg } = Visuals;
 
-  return function ZiweiView({ chart, isDark, beginnerMode, busy, onCast, onDemo, onAskDeepSeek, t }) {
+  return function ZiweiView({ chart, isDark, beginnerMode, busy, onCast, onDemo, onAskDeepSeek, profileTools, t }) {
     const [formOpen, setFormOpen] = React.useState(!chart);
     const [stageMode, setStageMode] = React.useState('wheel'); // 'wheel' | 'square'
-    const [name, setName] = React.useState('');
-    const [date, setDate] = React.useState('1998-03-12');
-    const [lunarYear, setLunarYear] = React.useState('1998');
-    const [lunarMonth, setLunarMonth] = React.useState('2');
-    const [lunarDay, setLunarDay] = React.useState('14');
-    const [isLeapMonth, setIsLeapMonth] = React.useState(false);
-    const [time, setTime] = React.useState('21:30');
-    const [gender, setGender] = React.useState('female');
-    const [calendar, setCalendar] = React.useState('solar');
-    const [longitude, setLongitude] = React.useState('');
+    const [birth, setBirth] = React.useState(() => createBirthDraft({ date: '1998-03-12', time: '21:30', gender: 'female' }, '1998-2-14'));
     const [question, setQuestion] = React.useState('');
     const [selectedPalaceIdx, setSelectedPalaceIdx] = React.useState(0);
     const [activeYear, setActiveYear] = React.useState('natal');
@@ -31,23 +22,16 @@ function createZiweiView(React, Visuals) {
 
     const submit = e => {
       e.preventDefault();
-      const params = { system: 'ziwei', name, time, gender, calendar, question };
-      if (calendar === 'lunar') {
-        params.year = Number(lunarYear) || 1998;
-        params.month = Number(lunarMonth) || 1;
-        params.day = Number(lunarDay) || 1;
-        params.isLeapMonth = isLeapMonth;
-      } else {
-        params.date = date;
-      }
-      if (longitude !== '' && Number.isFinite(Number(longitude))) {
-        params.longitude = Number(longitude);
-      }
-      onCast(params);
+      onCast({ system: 'ziwei', ...birthParams(birth), question });
     };
 
     const selectedPalace = chart?.palaces?.[selectedPalaceIdx] || chart?.palaces?.[0];
-    const triSet = new Set(selectedPalace ? [selectedPalace.oppositeIndex, ...(selectedPalace.trineIndices || [])] : []);
+    const triSet = new Set(selectedPalace?.trineIndices || []);
+    const oppositePalace = chart?.palaces?.find(p => p.index === selectedPalace?.oppositeIndex);
+    const relatedPalaces = [
+      oppositePalace && { label: '对宫', palace: oppositePalace },
+      ...[...triSet].map(idx => ({ label: '三合', palace: chart?.palaces?.find(p => p.index === idx) })),
+    ].filter(item => item?.palace);
     const yearlyObj = activeYear !== 'natal'
       ? (chart?.yearlyHoroscopes || []).find(y => y.year === activeYear) || null
       : null;
@@ -83,12 +67,13 @@ function createZiweiView(React, Visuals) {
           const p = palaceByPos[`${r}-${c}`];
           if (!p) continue;
           const isSelf = p.index === selectedPalaceIdx;
+          const isOpposite = !isSelf && p.index === selectedPalace?.oppositeIndex;
           const isTrine = !isSelf && triSet.has(p.index);
           const isYearlyLife = yearlyObj && yearlyObj.palaceIndex === p.index;
 
           cells.push(h('button', {
             key: p.index, type: 'button', 'aria-pressed': isSelf,
-            className: `zm-zw-cell ${isSelf ? 'zm-zw-self' : isTrine ? 'zm-zw-trine' : ''} ${isYearlyLife ? 'zm-zw-yearly' : ''}`,
+            className: `zm-zw-cell ${isSelf ? 'zm-zw-self' : isOpposite ? 'zm-zw-opposite' : isTrine ? 'zm-zw-trine' : ''} ${isYearlyLife ? 'zm-zw-yearly' : ''}`,
             onClick: () => setSelectedPalaceIdx(p.index),
           },
             h('div', { style: { display: 'flex', flexDirection: 'column', gap: 1.5 } },
@@ -117,79 +102,70 @@ function createZiweiView(React, Visuals) {
     };
 
     return h('div', { className: 'zm-animate', style: { display: 'flex', flexDirection: 'column', gap: 11 } },
-      // 1. MONUMENTAL ZIWEI STAR-CHART WHEEL / SQUARE GRID CANVAS
-      h('div', { className: 'zm-canvas' },
-        h(CelestialBackdropSvg, { isDark }),
-        h('div', { className: 'zm-canvas-bar' },
-          h('div', { className: 'zm-stage-tabs', role: 'tablist' },
-            h('button', {
-              type: 'button', role: 'tab', 'aria-selected': stageMode === 'wheel',
-              className: `zm-stage-tab ${stageMode === 'wheel' ? 'zm-on' : ''}`,
-              onClick: () => setStageMode('wheel'),
-            }, '星图轮盘'),
-            h('button', {
-              type: 'button', role: 'tab', 'aria-selected': stageMode === 'square',
-              className: `zm-stage-tab ${stageMode === 'square' ? 'zm-on' : ''}`,
-              onClick: () => setStageMode('square'),
-            }, '传统方盘'),
-          ),
-          h('div', { style: { display: 'flex', gap: 5, alignItems: 'center' } },
-            chart ? h('button', { type: 'button', className: 'zm-btn zm-btn-sm', onClick: () => setFormOpen(v => !v) }, formOpen ? '收起' : '排盘') : null,
-            chart ? h('button', {
-              type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm',
-              onClick: () => onAskDeepSeek(`请调用 zhiming_read 读取我的紫微斗数命盘（盘面ID: ${chart.id}，${chart.title}，${chart.meta.fiveElementsClass}${yearlyObj ? `，重点叠加 ${yearlyObj.year} ${yearlyObj.stemBranch}流年` : ''}），用新手白话为我深度解读命宫、身宫、官禄宫、财帛宫、紫微格局与四化布局。`),
-            }, `✦ ${t('dock.ask')}`) : h('button', {
-              type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm', disabled: busy,
-              onClick: () => onDemo('ziwei'),
-            }, `✦ ${t('action.demo')}`),
-          ),
+      h(ChartCanvas, {
+        isDark,
+        tabs: h('div', { className: 'zm-stage-tabs', role: 'tablist' },
+          h('button', {
+            type: 'button', role: 'tab', 'aria-selected': stageMode === 'wheel',
+            className: `zm-stage-tab ${stageMode === 'wheel' ? 'zm-on' : ''}`,
+            onClick: () => setStageMode('wheel'),
+          }, '星图轮盘'),
+          h('button', {
+            type: 'button', role: 'tab', 'aria-selected': stageMode === 'square',
+            className: `zm-stage-tab ${stageMode === 'square' ? 'zm-on' : ''}`,
+            onClick: () => setStageMode('square'),
+          }, '传统方盘'),
         ),
-
+        actions: h('div', { className: 'zm-button-group' },
+          chart ? h('button', { type: 'button', className: 'zm-btn zm-btn-sm', onClick: () => setFormOpen(v => !v) }, formOpen ? '收起' : '排盘') : null,
+          chart ? h(DeepSeekButton, {
+            primary: true,
+            onClick: () => onAskDeepSeek(`请调用 zhiming_read 读取我的紫微斗数命盘（盘面ID: ${chart.id}，${chart.title}，${chart.meta.fiveElementsClass}${yearlyObj ? `，重点叠加 ${yearlyObj.year} ${yearlyObj.stemBranch}流年` : ''}），用新手白话为我深度解读命宫、身宫、官禄宫、财帛宫、星曜组合与四化布局。`),
+          }, t('action.askDeepSeek')) : h('button', {
+            type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm', disabled: busy,
+            onClick: () => onDemo('ziwei'),
+          }, `✦ ${t('action.demo')}`),
+        ),
+        controls: chart?.yearlyHoroscopes?.length ? h('div', { className: 'zm-stage-tabs', role: 'tablist', 'aria-label': '本命和流年' },
+          h('button', {
+            type: 'button', role: 'tab', 'aria-selected': activeYear === 'natal',
+            className: `zm-stage-tab ${activeYear === 'natal' ? 'zm-on' : ''}`,
+            onClick: () => setActiveYear('natal'),
+          }, '本命'),
+          ...chart.yearlyHoroscopes.map(yh => h('button', {
+            key: yh.year, type: 'button', role: 'tab', 'aria-selected': activeYear === yh.year,
+            className: `zm-stage-tab ${activeYear === yh.year ? 'zm-on' : ''}`,
+            onClick: () => { setActiveYear(yh.year); setSelectedPalaceIdx(yh.palaceIndex); },
+          }, `${yh.year}流年`)),
+        ) : null,
+      },
         stageMode === 'wheel' || !chart
-          ? h('div', { className: 'zm-canvas-artwork' },
-            h(ZiweiStarWheelSvg, {
-              chart,
-              isDark,
-              selectedPalaceIdx,
-              yearlyObj,
-              onSelectPalace: setSelectedPalaceIdx,
-            }),
-          )
-          : h('div', { className: 'zm-ziwei-scroll', style: { position: 'relative', zIndex: 2 } },
+          ? h(ZiweiStarWheelSvg, {
+            chart,
+            isDark,
+            selectedPalaceIdx,
+            yearlyObj,
+            onSelectPalace: setSelectedPalaceIdx,
+          })
+          : h('div', { className: 'zm-ziwei-scroll' },
             h('div', { className: 'zm-ziwei-grid' }, ...renderSquareCells()),
           ),
-
-        // Minimal Yearly Horoscope Switcher Bar
-        chart?.yearlyHoroscopes?.length ? h('div', { className: 'zm-canvas-footer' },
-          h('div', { className: 'zm-stage-tabs', role: 'tablist' },
-            h('button', {
-              type: 'button', role: 'tab', 'aria-selected': activeYear === 'natal',
-              className: `zm-stage-tab ${activeYear === 'natal' ? 'zm-on' : ''}`,
-              onClick: () => setActiveYear('natal'),
-            }, '本命'),
-            ...chart.yearlyHoroscopes.map(yh => h('button', {
-              key: yh.year, type: 'button', role: 'tab', 'aria-selected': activeYear === yh.year,
-              className: `zm-stage-tab ${activeYear === yh.year ? 'zm-on' : ''}`,
-              onClick: () => { setActiveYear(yh.year); setSelectedPalaceIdx(yh.palaceIndex); },
-            }, `${yh.year}流年`)),
-          ),
-        ) : null,
       ),
 
       beginnerMode ? h('div', { className: 'zm-tip-banner' },
         h('strong', null, '看图提示：'),
-        '点击星图任意一宫，中心会亮起金色对宫线与紫色三合三角（三方四正）；点底部流年按钮可查看流年命宫与青色流年四化星点。',
+        '点选一宫后，可沿金色虚线找对宫、沿紫色三角找两个三合宫。三方四正包含本宫与这三个宫位。',
       ) : null,
 
       // 2. Concise Selected Palace Inspector
       chart && selectedPalace ? h('div', { className: 'zm-card' },
         h('div', { className: 'zm-card-title', style: { marginBottom: 5 } },
-          h('span', null, `${selectedPalace.name}（${selectedPalace.stemBranch} · ${selectedPalace.decadalRange[0]}-${selectedPalace.decadalRange[1]}岁）`),
-          h('button', {
-            type: 'button', className: 'zm-btn zm-btn-sm',
-            onClick: () => onAskDeepSeek(`请调用 zhiming_read 读取我的紫微斗数命盘（盘面ID: ${chart.id}），结合三方四正重点帮我解读「${selectedPalace.name}」的星曜组合与现实指引。`),
-          }, t('action.askFocus')),
+          h('span', null, `本命${selectedPalace.name} · ${selectedPalace.stemBranch}`),
+          h(DeepSeekButton, {
+            onClick: () => onAskDeepSeek(`请调用 zhiming_read 读取紫微斗数命盘（盘面ID: ${chart.id}），结合三方四正说明本命「${selectedPalace.name}」的星曜组合${yearlyObj ? `，同时说明${yearlyObj.year}流年命宫与流年四化叠加在本命盘的哪些宫位` : ''}。`),
+          }, t('action.askDeepSeek')),
         ),
+        selectedPalace.decadalRange?.length ? h('div', { className: 'zm-muted', style: { marginBottom: 6 } }, `大限 ${selectedPalace.decadalRange.join('–')} 岁`) : null,
         selectedPalace.majorStars.length
           ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--zm-text-sub)' } },
             ...selectedPalace.majorStars.map((s, i) => h('div', { key: i },
@@ -197,66 +173,47 @@ function createZiweiView(React, Visuals) {
               s.glossary || '核心主星',
             )),
           )
-          : h('div', { style: { fontSize: 12, color: 'var(--zm-text-sub)' } }, `空宫借对宫「${chart.palaces[selectedPalace.oppositeIndex]?.name}」主星参看，弹性与适应力极强。`),
+          : h('div', { style: { fontSize: 12, color: 'var(--zm-text-sub)' } }, `本宫无主星${oppositePalace ? `，可参看对宫${oppositePalace.name}的主星` : ''}。`),
+        relatedPalaces.length ? h('div', { className: 'zm-reading-list' },
+          h('div', { className: 'zm-muted' }, '三方四正 · 点击换宫'),
+          h('div', { className: 'zm-button-group' },
+            ...relatedPalaces.map(({ label, palace }) => h('button', {
+              type: 'button', key: palace.index, className: 'zm-btn zm-btn-sm',
+              style: { color: label === '对宫' ? 'var(--zm-gold)' : 'var(--zm-purple)' },
+              onClick: () => setSelectedPalaceIdx(palace.index),
+            }, `${label} ${palace.name} · ${palace.majorStars.map(s => s.name).join('、') || '无主星'}`)),
+          ),
+        ) : null,
+        yearlyObj ? h('div', { className: 'zm-reading-list' },
+          h('div', null, `${yearlyObj.year} 流年命宫 → 本命${yearlyObj.palaceName}`),
+          yearlyObj.mutagens?.length ? h('div', { className: 'zm-button-group' },
+            ...yearlyObj.mutagens.filter(m => m.palaceIndex >= 0).map(m => h('button', {
+              type: 'button', key: m.mutagen, className: 'zm-btn zm-btn-sm',
+              style: { color: 'var(--zm-blue)' },
+              onClick: () => setSelectedPalaceIdx(m.palaceIndex),
+            }, `流年${m.star}化${m.mutagen} · ${m.palace}`)),
+          ) : null,
+        ) : null,
       ) : null,
 
       // 3. Input Form
       formOpen ? h('div', { className: 'zm-card' },
-        h('form', { onSubmit: submit },
-          h('div', { className: 'zm-form-grid' },
-            h('div', { className: 'zm-field' },
-              h('label', null, t('form.calendar')),
-              h('select', { className: 'zm-select', value: calendar, onChange: e => setCalendar(e.target.value) },
-                h('option', { value: 'solar' }, t('form.solar')),
-                h('option', { value: 'lunar' }, t('form.lunar')),
-              ),
-            ),
-            h('div', { className: 'zm-field' },
-              h('label', null, t('form.gender')),
-              h('select', { className: 'zm-select', value: gender, onChange: e => setGender(e.target.value) },
-                h('option', { value: 'female' }, t('form.female')),
-                h('option', { value: 'male' }, t('form.male')),
-              ),
-            ),
-            calendar === 'solar' ? h('div', { className: 'zm-field' },
-              h('label', null, t('form.birthDate')),
-              h('input', { className: 'zm-input', type: 'date', value: date, onChange: e => setDate(e.target.value), required: true }),
-            ) : h('div', { className: 'zm-lunar-row' },
-              h('div', { className: 'zm-field' }, h('label', null, t('form.lunarYear')), h('input', { className: 'zm-input', type: 'number', min: 1901, max: 2099, value: lunarYear, onChange: e => setLunarYear(e.target.value), required: true })),
-              h('div', { className: 'zm-field' }, h('label', null, t('form.lunarMonth')), h('input', { className: 'zm-input', type: 'number', min: 1, max: 12, value: lunarMonth, onChange: e => setLunarMonth(e.target.value), required: true })),
-              h('div', { className: 'zm-field' }, h('label', null, t('form.lunarDay')), h('input', { className: 'zm-input', type: 'number', min: 1, max: 30, value: lunarDay, onChange: e => setLunarDay(e.target.value), required: true })),
-              h('label', { className: 'zm-check-label' }, h('input', { type: 'checkbox', checked: isLeapMonth, onChange: e => setIsLeapMonth(e.target.checked) }), t('form.leapMonth')),
-            ),
-            h('div', { className: 'zm-field' },
-              h('label', null, t('form.birthTime')),
-              h('input', { className: 'zm-input', type: 'time', value: time, onChange: e => setTime(e.target.value), required: true }),
-            ),
-            h('div', { className: 'zm-field' },
-              h('label', null, t('form.name')),
-              h('input', { className: 'zm-input', placeholder: '称呼（可选）', value: name, onChange: e => setName(e.target.value) }),
-            ),
-            h('div', { className: 'zm-field' },
-              h('label', null, t('form.advancedTst')),
-              h('select', { className: 'zm-select', value: longitude, onChange: e => setLongitude(e.target.value) },
-                ...CITY_LONGITUDES.map(c => h('option', { key: c.value || 'off', value: c.value }, c.value === '' ? t('form.longitudeOff') : c.label)),
-              ),
-            ),
-          ),
+        h('form', { className: 'zm-form', onSubmit: submit },
+          h(BirthFields, { birth, onChange: setBirth, genderFirst: 'female', profileTools, t }),
           h('div', { className: 'zm-form-footer' },
-            h('button', { type: 'button', className: 'zm-btn zm-btn-sm', disabled: busy, onClick: () => onDemo('ziwei') }, t('action.demo')),
+            h('button', { type: 'button', className: 'zm-btn', disabled: busy, onClick: () => onDemo('ziwei') }, t('action.demo')),
             h('button', { type: 'submit', className: 'zm-btn zm-btn-gold', disabled: busy }, busy ? t('status.casting') : t('action.cast')),
           ),
         ),
       ) : null,
 
       // 4. Collapsible Patterns & Four Mutagens Drawer
-      chart ? h('details', { className: 'zm-details' },
+      chart ? h('details', { key: chart.id, className: 'zm-details', open: true },
         h('summary', null,
-          h('span', null, `紫微经典格局识别 (${chart.patterns?.length || 0}) · 生年四化`),
-          h('span', { className: 'zm-muted' }, '展开详览 ▾'),
+          h('span', null, `星曜组合 (${chart.patterns?.length || 0}) · 生年四化`),
         ),
         h('div', { className: 'zm-details-body' },
-          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 5 } },
+          h('div', { className: 'zm-button-group' },
             ...(chart.mutagens || []).map((m, i) => {
               const mc = MUTAGEN_COLOR[m.mutagen] || MUTAGEN_COLOR['禄'];
               return h('button', {

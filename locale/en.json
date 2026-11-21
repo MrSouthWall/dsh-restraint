@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "ZhiMing Feng Shui studio",
-    "description": "Interactive Chinese metaphysics and Feng Shui studio supporting Bazi (Four Pillars), Qimen Dunjia, Meihua Yishu, Ziwei Doushu, and dual-chart synastry (Hepan), built on open-source lunar-javascript and iztro engines. Open the ZhiMing Studio tab from the composer dock pill or the right sidebar guide, use Beginner Guide for step-by-step tutorials and one-click demos, or chat with DeepSeek to cast charts visually and read active plugin chart data back for interpretation. All calculations run locally; clicking Ask DeepSeek sends a prompt in the active conversation. Disabling the plugin removes the studio tab, dock launcher, slash command, and tools.",
+    "description": "Interactive Chinese metaphysics and Feng Shui studio supporting Bazi (Four Pillars), Qimen Dunjia, Meihua Yishu, Ziwei Doushu, and dual-chart synastry (Hepan), built on open-source lunar-javascript and iztro engines. Open the ZhiMing Studio tab from the right sidebar guide, use Beginner Guide for step-by-step tutorials and one-click demos, or chat with DeepSeek to cast charts visually and read active plugin chart data back for interpretation. All calculations run locally. Clicking “D老师解读” sends a prompt in the active conversation. Disabling the plugin removes the studio tab, slash command, and tools.",
     "detail": "docs/DETAIL.md"
   }
 }

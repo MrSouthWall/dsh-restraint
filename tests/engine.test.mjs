@@ -21,9 +21,14 @@ test('64 hexagrams table is complete and unique', () => {
       assert.ok(h, `Missing hexagram for ${u}-${l}`);
       assert.equal(h.upper, u);
       assert.equal(h.lower, l);
-      assert.ok(h.symbol && h.fullName && h.judgment && h.summary);
+      assert.ok(h.symbol && h.fullName && h.judgment && h.image);
     }
   }
+  // 《周易》讼、蒙与剥卦，检查完整经文与误断句修订。
+  assert.match(HEXAGRAMS_BY_NUMBER[6].judgment, /利見大人，不利涉大川。$/);
+  assert.match(HEXAGRAMS_BY_NUMBER[4].judgment, /利貞。$/);
+  assert.equal(HEXAGRAMS_BY_NUMBER[23].judgment, '不利有攸往。');
+  assert.equal(HEXAGRAMS_BY_NUMBER[1].image, '天行健，君子以自強不息。');
 });
 
 test('Bazi engine calculates solar, lunar, and true solar time accurately', () => {
@@ -62,20 +67,79 @@ test('Bazi engine calculates solar, lunar, and true solar time accurately', () =
   });
   assert.equal(baziLunar.pillars.map(p => p.ganZhi).join(' '), '乙亥 辛巳 己酉 戊辰');
 
-  // True solar longitude shift (Urumqi ~87.6°E -> ~-130 min -> 08:30 becomes 06:20 卯时)
+  // NOAA's Meeus calculation adds roughly four minutes of equation of time
+  // to the city’s longitude correction, without changing May 18 to a weekday index.
   const baziTst = castChart({
-    system: 'bazi',
-    date: '1995-05-18',
-    time: '08:30',
-    gender: 'male',
-    longitude: 87.6,
+    system: 'bazi', date: '1995-05-18', time: '08:30', gender: 'male', longitude: 87.6,
   });
   assert.equal(baziTst.meta.trueSolarApplied, true);
-  assert.equal(baziTst.pillars[3].zhi, '卯');
+  assert.equal(baziTst.meta.civilDate, '1995-05-18 08:30:00');
+  assert.equal(baziTst.meta.apparentSolarDate, '1995-05-18 06:24:02');
+  assert.deepEqual(baziTst.pillars.map(p => p.ganZhi), ['乙亥', '辛巳', '己酉', '丁卯']);
+  const atStandardMeridian = castChart({
+    system: 'bazi', date: '1995-05-18', time: '08:30', gender: 'male', longitude: 120,
+  });
+  assert.equal(atStandardMeridian.meta.apparentSolarDate, '1995-05-18 08:33:38');
+
+  // HKO lists the 2026 Start of Spring at 04:02 UTC+8. Test on each side
+  // of the engine's 04:02:08 boundary with the apparent clock still below 04:02.
+  const nearTerm = { system: 'bazi', date: '2026-02-04', gender: 'male', longitude: 116.4 };
+  const before = castChart({ ...nearTerm, time: '04:02:07' });
+  const after = castChart({ ...nearTerm, time: '04:02:08' });
+  assert.deepEqual(before.pillars.slice(0, 2).map(p => p.ganZhi), ['乙巳', '己丑']);
+  assert.deepEqual(after.pillars.slice(0, 2).map(p => p.ganZhi), ['丙午', '庚寅']);
+  assert.equal(after.meta.apparentSolarDate, '2026-02-04 03:33:53');
+  assert.equal(after.meta.mingGuaYear, 2026);
+  assert.equal(castChart({ ...nearTerm, time: '00:10' }).meta.apparentSolarDate, '2026-02-03 23:41:46');
+  assert.equal(after.pattern.name, '月令本气·正官');
+
+  assert.throws(() => castChart({ ...nearTerm, date: '2026-02-30', time: '12:00' }), /公历日期不存在/);
+  assert.throws(() => castChart({ ...nearTerm, date: 'not a date', time: '12:00' }), /日期格式无效/);
+  assert.throws(() => castChart({ ...nearTerm, time: '24:00' }), /时间超出/);
+  assert.throws(() => castChart({ ...nearTerm, time: '12:00', longitude: 181 }), /经度须在/);
+  assert.throws(() => castChart({ ...nearTerm }), /出生时间/);
+  assert.throws(() => castChart({ ...nearTerm, time: '12:00', gender: undefined }), /请提供传统排盘使用的性别/);
+  const yinDayWithRobWealth = castChart({ system: 'bazi', date: '2026-11-01', time: '08:30', gender: 'male' });
+  assert.equal(yinDayWithRobWealth.pattern.name, '月令本气·劫财');
+  assert.equal(Object.values(bazi.wuxing.counts).reduce((a, b) => a + b), 8);
   // Verify missing birth date errors cleanly unless useDemo: true
   assert.throws(() => castChart({ system: 'bazi' }), /Missing birth date/);
   assert.throws(() => castChart({ system: 'ziwei' }), /Missing birth date/);
   assert.throws(() => castChart({ system: 'hepan' }), /Missing personA\/personB/);
+});
+
+test('Bazi identifies three-branch meetings and gives conditional Fuyi references', () => {
+  const baziAt = (date, time) => castChart({ system: 'bazi', date, time, gender: 'male' });
+  for (const [date, time, branches, name, pillarIndices] of [
+    ['2022-03-14', '08:00', '寅卯寅辰', '寅卯辰三会木局', [0, 1, 2, 3]],
+    ['2025-06-12', '14:00', '巳午子未', '巳午未三会火局', [0, 1, 3]],
+    ['2028-09-12', '20:00', '申酉子戌', '申酉戌三会金局', [0, 1, 3]],
+    ['2019-12-12', '02:00', '亥子未丑', '亥子丑三会水局', [0, 1, 3]],
+  ]) {
+    const chart = baziAt(date, time);
+    assert.equal(chart.pillars.map(p => p.zhi).join(''), branches);
+    assert.deepEqual(chart.branchMeetings, [{ name, pillarIndices }]);
+    assert.match(formatChartForModel(chart), new RegExp(name));
+  }
+  const incomplete = baziAt('2022-03-09', '04:00');
+  assert.equal(incomplete.pillars.map(p => p.zhi).join(''), '寅卯酉寅');
+  assert.deepEqual(incomplete.branchMeetings, []);
+
+  const chart = baziAt('2022-03-09', '08:00');
+  assert.deepEqual(chart.fuyi, {
+    monthCommand: '卯月 · 本气乙木（偏财）',
+    rootClues: ['日柱酉藏辛（比肩）'],
+    otherStems: ['年柱壬（伤官）', '月柱癸（食神）', '时柱壬（伤官）'],
+    ifWeak: '印星土生身、比劫金帮身',
+    ifStrong: '食伤水泄身、官杀火制身',
+  });
+  assert.match(formatChartForModel(chart), /尚未判定日主强弱或用神/);
+  const { branchMeetings, fuyi, ...savedChart } = chart;
+  const savedState = { ...zhimingProjectionDefinition.init(), charts: [savedChart] };
+  assert.deepEqual(zhimingProjectionDefinition.wire.view(savedState).charts[0], chart);
+  assert.equal(formatChartForModel(savedChart), formatChartForModel(chart));
+  const terms = lookupTutorial('六合六冲六害 三会局 扶抑用神').matches;
+  assert.deepEqual(terms.filter(m => m.category === '基础术语').map(m => m.term), ['六合', '六冲', '六害', '三会局', '扶抑用神']);
 });
 
 test('Qimen Dunjia respects exact astronomical solar term boundary and ChaiBu ZhuanPan invariants', () => {
@@ -101,6 +165,19 @@ test('Qimen Dunjia respects exact astronomical solar term boundary and ChaiBu Zh
   assert.equal(outer.filter(p => p.isZhiFu).length, 1);
   assert.equal(outer.filter(p => p.isZhiShi).length, 1);
   assert.equal(qm.goodDirections.length, 3);
+  // 《遁甲演义》冬至上元阳遁一局，甲己日丙寅时的值符例。
+  const classical = castChart({ system: 'qimen', date: '2026-12-31', time: '04:00' });
+  assert.deepEqual([classical.meta.juNum, classical.meta.zhiFuStar, classical.meta.zhiFuPalace], [1, '天蓬', '艮八宫']);
+
+  const formerFalseMatch = castChart({ system: 'qimen', date: '2026-11-01', time: '02:00' });
+  const xun = formerFalseMatch.palaces.find(p => p.num === 4);
+  assert.deepEqual([xun.heavenStem, xun.earthStem], ['丁', '己']);
+  assert.ok(!xun.formations.some(f => f.name === '三奇得使'));
+  assert.equal(formerFalseMatch.palaces.filter(p => p.isZhiFu).length, 1);
+  assert.equal(formerFalseMatch.meta.zhiFuStar, '天禽');
+  assert.equal(formerFalseMatch.palaces.find(p => p.isZhiFu).carriedStar, '天禽');
+  const positiveMatch = classical.formations.find(f => f.name === '三奇得使');
+  assert.ok(positiveMatch);
   // Round 2 Qimen additions: YongShen Radar & Formations
   assert.deepEqual(Object.keys(qm.yongshenGuides), ['all', 'career', 'wealth', 'love', 'health', 'travel']);
   for (const g of Object.values(qm.yongshenGuides)) {
@@ -142,10 +219,22 @@ test('Meihua Yishu handles all casting modes and computes all 5 hexagrams accura
       if (mh.hexagrams.main.lines[i] !== mh.hexagrams.changed.lines[i]) diffs.push(i + 1);
     }
     assert.deepEqual(diffs, [mh.meta.movingLine]);
-    // Round 2 Meihua additions: Timing & WanWu LeiXiang imagery
-    assert.ok(mh.timing?.responseNumber >= 2 && mh.timing?.shortRange && mh.timing?.favorableMonths);
     assert.ok(mh.imagery?.ti?.direction && mh.imagery?.yong?.direction);
   }
+
+  const newYearEve = castChart({ system: 'meihua', date: '2024-02-09', time: '16:00' });
+  assert.equal(newYearEve.hexagrams.main.fullName, '水山蹇');
+  assert.equal(newYearEve.meta.movingLine, 1);
+  const plum = castChart({ system: 'meihua', date: '2025-01-16', time: '16:00' }); // 辰年腊月十七申时
+  assert.deepEqual([plum.hexagrams.main.fullName, plum.hexagrams.changed.fullName, plum.meta.movingLine], ['泽火革', '泽山咸', 1]);
+  const pure = castChart({ system: 'meihua', method: 'numbers', num1: 1, num2: 1, num3: 3 });
+  assert.equal(pure.meta.mutualFromChanged, true);
+  assert.equal(pure.hexagrams.mutual.fullName, '风火家人');
+  const phrase = castChart({ system: 'meihua', method: 'text', text: '春风，得意' });
+  assert.equal(phrase.hexagrams.main.fullName, '兑为泽');
+  assert.equal(phrase.meta.movingLine, 4);
+  assert.throws(() => castChart({ system: 'meihua', method: 'text', text: '春' }), /至少需要两个字/);
+  assert.throws(() => castChart({ system: 'meihua', method: 'numbers', num1: 0, num2: 7 }), /须为正整数/);
 });
 
 test('Ziwei Doushu builds valid 12-palace 4x4 grid, Tri-Aspect links, and 4 mutagens', () => {
@@ -171,7 +260,16 @@ test('Ziwei Doushu builds valid 12-palace 4x4 grid, Tri-Aspect links, and 4 muta
   assert.equal(earlyZi.meta.time, '早子时');
   assert.equal(lateZi.meta.time, '晚子时');
   // Round 2 Ziwei additions: Classic Patterns & 3-year Horoscopes with 4 flying mutagens
-  assert.ok(Array.isArray(zw.patterns) && zw.patterns.length >= 1);
+  assert.ok(Array.isArray(zw.patterns));
+  const ziweiOn = time => castChart({ system: 'ziwei', date: '2026-11-01', time, gender: 'male' });
+  assert.ok(ziweiOn('02:00').patterns.some(p => p.name === '阳梁昌禄格'));
+  assert.ok(!ziweiOn('06:00').patterns.some(p => p.name === '阳梁昌禄格'));
+  assert.ok(!ziweiOn('14:00').patterns.some(p => p.name === '机巨同临格'));
+  const eve = castChart({ system: 'ziwei', date: '2026-02-16', time: '23:00', gender: 'male' });
+  assert.match(eve.meta.lunarDate, /二〇二六年正月初一/);
+  const leap = castChart({ system: 'ziwei', date: '2025-06-16', calendar: 'lunar', isLeapMonth: true, time: '12:00', gender: 'male' });
+  assert.equal(leap.meta.solarDate, '2025-08-09 12:00');
+  assert.match(leap.meta.lunarDate, /闰六月十六/);
   assert.equal(zw.yearlyHoroscopes.length, 3);
   for (const yh of zw.yearlyHoroscopes) {
     assert.ok(yh.year && yh.stemBranch && yh.palaceName);
@@ -185,16 +283,31 @@ test('Hepan computes 6 dimensions for love, business, and family modes', () => {
     const hp = castChart({ ...DEMO_PRESETS.hepan, relation });
     assert.equal(hp.relation, relation);
     assert.equal(hp.dimensions.length, 6);
-    assert.ok(hp.overallScore >= 35 && hp.overallScore <= 98);
-    assert.ok(hp.highlights.length >= 1);
-    assert.ok(hp.cautions.length >= 1);
-    assert.ok(hp.advice.length >= 1);
+    assert.ok(hp.dimensions.every(d => d.summary));
+    assert.equal(hp.overallScore, undefined);
+    assert.deepEqual(hp.branchInteractions.六合, ['甲方（示例）年柱亥 · 乙方（示例）年柱寅']);
+    assert.ok(hp.branchInteractions.六冲.includes('甲方（示例）日柱酉 · 乙方（示例）月柱卯'));
+    const shared = '甲方（示例）月柱巳 · 乙方（示例）年柱寅';
+    assert.ok(hp.branchInteractions.六害.includes(shared) && hp.branchInteractions.相刑.includes(shared));
     assert.ok(formatChartForModel(hp).includes(hp.relationLabel));
+    assert.ok(formatChartForModel(hp).includes(`跨盘六害配对: ${shared}`));
     // Round 2 Hepan additions: 30y sync timeline, element synergy matrix, MingGua
-    assert.equal(hp.timeline30y.length, 10);
+    assert.ok(hp.timeline30y.personA.every(p => p.endExclusive > hp.timeline30y.from && p.startDate < hp.timeline30y.toExclusive));
     assert.equal(hp.elementSynergy.length, 5);
     assert.ok(hp.personA.mingGua && hp.personB.mingGua);
   }
+});
+
+test('old results are marked and comparison starts at actual Yun dates', t => {
+  t.mock.method(Date, 'now', () => Date.parse('2026-11-20T04:00:00Z'));
+  const h = castChart({
+    ...DEMO_PRESETS.hepan,
+    personA: { date: '2026-11-01', time: '12:00', gender: 'male' },
+  });
+  assert.equal(h.timeline30y.from, '2026-01-01');
+  assert.ok(h.timeline30y.personA[0].startDate > '2026-12-31');
+  assert.ok(formatChartForModel(h).includes(h.timeline30y.personA[0].startDate));
+  assert.match(formatChartForModel({ ...h, rulesVersion: undefined }), /原始输入重排/);
 });
 
 test('Host plugin registers DSH-compliant tools, command, prompt section, and bidirectional projection', async () => {
@@ -335,6 +448,34 @@ test('Host plugin registers DSH-compliant tools, command, prompt section, and bi
   const readList = await readTool.execute({ action: 'list' }, { agent: { session } });
   assert.equal(readList.count, 2);
 
+  // The read tool must distinguish the two entered clocks from the corrected clocks.
+  const hepanArgs = {
+    ...DEMO_PRESETS.hepan,
+    personA: { ...DEMO_PRESETS.hepan.personA, time: '09:00', longitude: 121.5 },
+    personB: { ...DEMO_PRESETS.hepan.personB, time: '17:00', longitude: 113.3 },
+  };
+  const hepanRes = await cmd.handler({
+    agent: { session },
+    rawInput: JSON.stringify({ op: 'cast', params: hepanArgs }),
+  });
+  assert.equal(hepanRes.kind, 'success');
+  state = projDef.apply(state, { type: 'command/done', data: { kind: 'success', text: hepanRes.text } });
+  projectionStateBySession.set(session, state);
+  const hepanReadArgs = { action: 'by_id', chartId: state.activeChartId };
+  const hepanRead = await readTool.execute(hepanReadArgs, { agent: { session } });
+  const hepanText = readTool.output.render(hepanReadArgs, hepanRead)[0].text;
+  assert.ok(hepanText.includes('出生时间（北京时间 UTC+8） 1995-05-18 09:00:00 | 排盘真太阳时 1995-05-18 09:09:38'));
+  assert.ok(hepanText.includes('出生时间（北京时间 UTC+8） 1998-03-12 17:00:00 | 排盘真太阳时 1998-03-12 16:23:22'));
+
+  const withoutInputTime = ({ civilDate, apparentSolarDate, ...person }) => person;
+  const historicalText = formatChartForModel({
+    ...hepanRead.chart,
+    personA: withoutInputTime(hepanRead.chart.personA),
+    personB: withoutInputTime(hepanRead.chart.personB),
+  });
+  assert.ok(historicalText.includes('历史盘记录的排盘时刻 1998-03-12 16:23 | 原始出生时间待核对'));
+  assert.ok(!historicalText.includes('出生时间（北京时间 UTC+8）'));
+
   // `/zhiming help` returns helpful instructions instead of casting Meihua
   const helpRes = await cmd.handler({ agent: { session }, rawInput: 'help' });
   assert.equal(helpRes.kind, 'success');
@@ -386,13 +527,16 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   assert.equal(loadedSpec.id, '@local/dsh-zhiming');
 
   // Mock minimal React
+  let nextId = 0;
   const mockReact = {
     createElement: (type, props, ...children) => ({ type, props, children }),
     Fragment: Symbol('Fragment'),
     Component: class Component { constructor(p) { this.props = p; } },
     memo: c => c,
+    useId: () => `mock-id-${++nextId}`,
     useState: init => [typeof init === 'function' ? init() : init, () => {}],
     useEffect: () => {},
+    useLayoutEffect: () => {},
     useMemo: fn => fn(),
     useCallback: fn => fn,
     useRef: v => ({ current: v }),
@@ -409,6 +553,7 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   const localeRegistered = {};
   const tabRegistered = [];
   const disposers = [];
+  const selectedPanels = [];
 
   const declaredInjects = new Set([...plugin.inject]);
   let mockExecute = async () => ({ ok: true, value: { result: { kind: 'success' } } });
@@ -432,6 +577,7 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
         return key => localeRegistered[ns]?.zh?.[key] || key;
       },
     },
+    layout: { selectPanel: panel => selectedPanels.push(panel) },
     sidebarRight: { openTab() {} },
     sidebarRightTabs: {
       register(def) {
@@ -449,7 +595,12 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
       },
     },
     slots: {
-      inject(_owner, cb) { return cb(); },
+      inject(_owner, cb) {
+        const registration = cb();
+        if (typeof registration === 'function') return registration;
+        const cleanup = [...registration];
+        return () => cleanup.reverse().forEach(dispose => dispose());
+      },
       register(meta, component) {
         slotsRegistered.push({ meta, component });
         return () => {};
@@ -470,9 +621,20 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
 
   // Verify all expected slots registered
   const slotNames = slotsRegistered.map(s => `${s.meta.name}:${s.meta.key || s.meta.id}`);
+  const workspaceEntry = slotsRegistered.find(s => s.meta.name === 'main');
+  const sidebarEntry = slotsRegistered.find(s => s.meta.name === 'sidebar.panellist');
+  const workspaceBody = slotsRegistered.find(s => s.meta.name === 'zhiming.workspace');
+  assert.equal(sidebarEntry.meta.id, '@local/dsh-zhiming');
+  assert.equal(sidebarEntry.meta.id, workspaceEntry.meta.key);
+  assert.equal(sidebarEntry.meta.label(), '知命罗盘');
+  assert.equal(workspaceEntry.meta.children[workspaceBody.meta.name].scope, 'session-maybe');
+  const emptyWorkspace = workspaceBody.meta.inject(undefined);
+  assert.equal(emptyWorkspace.executeZhiming, undefined);
+  emptyWorkspace.onReturnToConversation();
+  assert.deepEqual(selectedPanels, [null]);
   assert.ok(slotNames.includes('sidebar.right.pane.tab:@local/dsh-zhiming'));
   assert.ok(slotNames.includes('sidebar.right.pane.tab.title:@local/dsh-zhiming'));
-  assert.ok(slotNames.includes('conversation.composer.dock:dsh-zhiming-dock'));
+  assert.ok(!slotsRegistered.some(s => s.meta.name === 'conversation.composer.dock'));
   assert.ok(slotNames.includes('tool.call.toolview:zhiming_chart'));
   assert.ok(slotNames.includes('tool.call.toolview:zhiming_read'));
   assert.ok(slotNames.includes('conversation.chat.commandview:zhiming'));
@@ -497,26 +659,30 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
 
   const tFn = k => localeRegistered.zhiming.zh[k] || k;
   const studioEntry = slotsRegistered.find(s => s.meta.name === 'sidebar.right.pane.tab');
-  const collectText = (node, acc = []) => {
+  const workspaceWithSession = workspaceBody.component({ sessionId: 's1', ...workspaceBody.meta.inject('s1'), t: tFn });
+  assert.equal(workspaceWithSession.type, studioEntry.component);
+  assert.equal(workspaceWithSession.props.uiNavFace, studioEntry.meta.inject('s1').uiNavFace);
+  const collectText = (node, acc = [], details) => {
     if (node == null) return acc;
     if (typeof node === 'string' || typeof node === 'number') { acc.push(String(node)); return acc; }
-    if (Array.isArray(node)) { node.forEach(n => collectText(n, acc)); return acc; }
+    if (Array.isArray(node)) { node.forEach(n => collectText(n, acc, details)); return acc; }
     if (typeof node === 'object') {
       if (typeof node.type === 'function') {
         if (node.type.prototype && typeof node.type.prototype.render === 'function') {
           const inst = new node.type({ ...(node.props || {}), children: node.children });
-          collectText(inst.render(), acc);
+          collectText(inst.render(), acc, details);
         } else {
-          collectText(node.type({ ...(node.props || {}), children: node.children }), acc);
+          collectText(node.type({ ...(node.props || {}), children: node.children }), acc, details);
         }
         return acc;
       }
-      if (Array.isArray(node.children)) node.children.forEach(c => collectText(c, acc));
+      if (node.type === 'details') details?.push(node.props);
+      if (Array.isArray(node.children)) node.children.forEach(c => collectText(c, acc, details));
     }
     return acc;
   };
   const origUseState = mockReact.useState;
-  const renderWithOverrides = (overrides, stateSnap) => {
+  const renderWithOverrides = (overrides, stateSnap, details) => {
     mockReact.useState = init => {
       const v = typeof init === 'function' ? init() : init;
       for (const [match, next] of overrides) {
@@ -529,7 +695,7 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
         ...studioEntry.meta.inject('s1'),
         useProjection: key => (key === 'zhiming' ? stateSnap : undefined),
         t: tFn,
-      })).join(' ');
+      }), [], details).join(' ');
     } finally {
       mockReact.useState = origUseState;
     }
@@ -538,13 +704,23 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   for (const theme of ['light', 'dark']) {
     for (const ch of demoCharts) {
       const stateSnap = { version: 1, activeChartId: ch.id, activeSystem: ch.system, focusedPart: null, charts: demoCharts };
-      const txt = renderWithOverrides([['light', theme]], stateSnap);
+      const details = [];
+      const txt = renderWithOverrides([['light', theme]], stateSnap, details);
+      assert.equal(details[0]?.open, true, `${ch.system} details should open by default`);
       assert.ok(txt.includes('浅色') && txt.includes('深色'));
-      if (ch.system === 'bazi') assert.ok(txt.includes('五行天象仪') && txt.includes('八宅罗盘'));
+      if (ch.system === 'bazi') {
+        for (const label of ['五行天象仪', '八宅罗盘', '干支关系', '六合', '六冲', '六害', '三会局', '扶抑用神', '若日主偏弱', '若日主偏强']) {
+          assert.ok(txt.includes(label), `Bazi should show ${label}`);
+        }
+        assert.ok(txt.includes('年柱亥与月柱巳'));
+      }
       if (ch.system === 'qimen') assert.ok(txt.includes('360° 浑天仪') && txt.includes('洛书九宫'));
-      if (ch.system === 'meihua') assert.ok(txt.includes('先天应数') && txt.includes('体用万物类象速查'));
-      if (ch.system === 'ziwei') assert.ok(txt.includes('星图轮盘') && txt.includes('紫微经典格局识别'));
-      if (ch.system === 'hepan') assert.ok(txt.includes('双星引力') && txt.includes('双方五行互补对比'));
+      if (ch.system === 'meihua') assert.ok(txt.includes('卦辞') && txt.includes('大象') && txt.includes('体用类象'));
+      if (ch.system === 'ziwei') assert.ok(txt.includes('星图轮盘') && txt.includes('星曜组合'));
+      if (ch.system === 'hepan') {
+        assert.ok(txt.includes('明干支五行占比') && txt.includes('地支、十神与紫微宫位') && txt.includes('0%'));
+        assert.ok(txt.includes('十六组跨盘配对') && txt.includes(ch.branchInteractions.六害[0]));
+      }
     }
     // Verify idle (empty) monumental artwork renders cleanly on every tab in both Light and Dark themes
     for (const sys of ['bazi', 'qimen', 'meihua', 'ziwei', 'hepan', 'tutorial']) {
@@ -557,17 +733,22 @@ test('Client bundle loads cleanly, registers all slots & locales, and forbids DS
   // Test secondary stage modes across all systems
   assert.ok(renderWithOverrides([['orrery', 'compass']], { version: 1, activeChartId: demoCharts[0].id, activeSystem: 'bazi', focusedPart: null, charts: demoCharts }).includes('西四命'));
   assert.ok(renderWithOverrides([['compass', 'grid']], { version: 1, activeChartId: demoCharts[1].id, activeSystem: 'qimen', focusedPart: null, charts: demoCharts }).includes('中五宫'));
+  const changedDemo = demoCharts[2];
+  const changedView = renderWithOverrides([['main', 'changed']], { version: 1, activeChartId: changedDemo.id, activeSystem: 'meihua', focusedPart: null, charts: demoCharts });
+  assert.ok(changedView.includes(`变用 ${changedDemo.tiYong.changedYongTrigram.name}`) && changedView.includes(changedDemo.tiYong.changedRelation.relation));
   assert.ok(renderWithOverrides([['wheel', 'square'], ['natal', demoCharts[3].yearlyHoroscopes[1].year]], { version: 1, activeChartId: demoCharts[3].id, activeSystem: 'ziwei', focusedPart: null, charts: demoCharts }).includes('流命'));
-  assert.ok(renderWithOverrides([['orrery', 'wave']], { version: 1, activeChartId: demoCharts[4].id, activeSystem: 'hepan', focusedPart: null, charts: demoCharts }).includes('双星共旺期'));
-  assert.ok(renderWithOverrides([], { version: 1, activeChartId: null, activeSystem: 'tutorial', focusedPart: null, charts: [] }).includes('玄空流年九宫飞星'));
+  assert.ok(renderWithOverrides([['compare', 'wave']], { version: 1, activeChartId: demoCharts[4].id, activeSystem: 'hepan', focusedPart: null, charts: demoCharts }).includes(demoCharts[4].timeline30y.personA[0].startDate));
+  assert.ok(renderWithOverrides([], { version: 1, activeChartId: null, activeSystem: 'tutorial', focusedPart: null, charts: [] }).includes('中 → 乾 → 兑 → 艮 → 离 → 坎 → 坤 → 震 → 巽'));
+
+  const legacy = { ...demoCharts[0], rulesVersion: undefined };
+  const oldView = renderWithOverrides([], { version: 1, activeChartId: legacy.id, activeSystem: legacy.system, focusedPart: null, charts: [legacy] });
+  assert.ok(oldView.includes('请输入原始资料重新排盘'));
+  assert.ok(!oldView.includes('月令本气·正印'));
 
   const emptyFace = { getSnapshot: () => ({ version: 1, activeChartId: null, activeSystem: 'tutorial', focusedPart: null, charts: [] }), subscribe: () => () => {} };
   renderTree(mockReact.createElement(studioEntry.component, { ...studioEntry.meta.inject('s1'), projectionFace: emptyFace, t: tFn }));
 
-  // Render Composer Dock, Tool Cards (success + error + preparing), Command Card (chart + focus + help + error), Tab Title
-  const dockEntry = slotsRegistered.find(s => s.meta.name === 'conversation.composer.dock');
-  renderTree(mockReact.createElement(dockEntry.component, { ...dockEntry.meta.inject('s1'), useProjection: () => ({ activeChartId: demoCharts[0].id, charts: demoCharts }), t: tFn }));
-
+  // Render inline tool and command cards and the sidebar tab title.
   const chartToolEntry = slotsRegistered.find(s => s.meta.key === 'zhiming_chart');
   for (const ch of demoCharts) {
     renderTree(mockReact.createElement(chartToolEntry.component, { ...chartToolEntry.meta.inject('s1'), phase: 'result', block: { time: 0, meta: { chart: ch } }, t: tFn }));

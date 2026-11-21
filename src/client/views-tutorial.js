@@ -1,6 +1,6 @@
 function createTutorialView(React, Visuals) {
   const h = React.createElement;
-  const { WuXingPentagonSvg, CelestialBackdropSvg, FlyingStarsAltarSvg, getFlyingStarsForYear } = Visuals;
+  const { DeepSeekButton, WuXingPentagonSvg, ChartCanvas, FlyingStarsAltarSvg, getFlyingStarsForYear } = Visuals;
 
   return function TutorialView({ isDark, busy, onSelectTab, onDemo, onAskDeepSeek, t }) {
     const [activeSection, setActiveSection] = React.useState('flyingstars');
@@ -8,7 +8,7 @@ function createTutorialView(React, Visuals) {
     const [searchTerm, setSearchTerm] = React.useState('');
     const currentYear = new Date().getFullYear();
     const [fsYear, setFsYear] = React.useState(currentYear);
-    const [selectedFsPalace, setSelectedFsPalace] = React.useState(4);
+    const [selectedFsPalace, setSelectedFsPalace] = React.useState(5);
 
     const trimmedQuery = searchTerm.trim();
     const filteredGlossary = CLIENT_TUTORIAL_DATA.glossary.filter(([term, desc]) => {
@@ -17,12 +17,13 @@ function createTutorialView(React, Visuals) {
     });
 
     const flyingStars = React.useMemo(() => getFlyingStarsForYear(fsYear), [fsYear]);
+    const flyPath = [...flyingStars].sort((a, b) => a.flyStep - b.flyStep);
     const activeFsCell = flyingStars.find(f => f.palaceNum === selectedFsPalace) || flyingStars[0];
 
     return h('div', { className: 'zm-animate', style: { display: 'flex', flexDirection: 'column', gap: 11 } },
       // Sleek Section Switcher
       h('div', { style: { display: 'flex', justifyContent: 'center' } },
-        h('div', { className: 'zm-stage-tabs', role: 'tablist', style: { flexWrap: 'wrap', justifyContent: 'center' } },
+        h('div', { className: 'zm-stage-tabs', role: 'tablist' },
           ...[
             ['flyingstars', '九宫飞星罗盘'],
             ['quickstart', '快速体验'],
@@ -39,37 +40,39 @@ function createTutorialView(React, Visuals) {
 
       // Section 1: Monumental XuanKong Annual Nine Flying Stars Octagonal Altar
       activeSection === 'flyingstars' ? h(React.Fragment, null,
-        h('div', { className: 'zm-canvas' },
-          h(CelestialBackdropSvg, { isDark }),
-          h('div', { className: 'zm-canvas-bar' },
-            h('span', { className: 'zm-glass-pill', style: { color: 'var(--zm-gold)' } }, `${fsYear} 玄空流年九宫飞星`),
-            h('div', { className: 'zm-stage-tabs', role: 'tablist' },
-              ...[currentYear - 1, currentYear, currentYear + 1].map(y => h('button', {
-                key: y, type: 'button', role: 'tab', 'aria-selected': fsYear === y,
-                className: `zm-stage-tab ${fsYear === y ? 'zm-on' : ''}`,
-                onClick: () => setFsYear(y),
-              }, `${y}年`)),
-            ),
+        h(ChartCanvas, {
+          isDark,
+          tabs: h('span', { className: 'zm-glass-pill', style: { color: 'var(--zm-gold)' } }, `${fsYear} 年飞星 · 立春起`),
+          actions: h('div', { className: 'zm-stage-tabs', role: 'tablist' },
+            ...[currentYear - 1, currentYear, currentYear + 1].map(y => h('button', {
+              key: y, type: 'button', role: 'tab', 'aria-selected': fsYear === y,
+              className: `zm-stage-tab ${fsYear === y ? 'zm-on' : ''}`,
+              onClick: () => setFsYear(y),
+            }, `${y}年`)),
           ),
-          h('div', { className: 'zm-canvas-artwork' },
-            h(FlyingStarsAltarSvg, {
-              flyingStars,
-              year: fsYear,
-              isDark,
-              selectedPalaceNum: selectedFsPalace,
-              onSelectPalace: setSelectedFsPalace,
-            }),
+          readout: h(React.Fragment, null,
+            h('span', { className: 'zm-glass-pill' }, `${flyPath[0].short}入中`),
+            h('span', { className: 'zm-glass-pill' }, '上南 · 下北'),
           ),
-        ),
+        }, h(FlyingStarsAltarSvg, {
+          flyingStars,
+          year: fsYear,
+          isDark,
+          selectedPalaceNum: selectedFsPalace,
+          onSelectPalace: setSelectedFsPalace,
+        })),
         activeFsCell ? h('div', { className: 'zm-card' },
           h('div', { className: 'zm-card-title', style: { marginBottom: 4 } },
             h('span', null, `${fsYear}年 · ${activeFsCell.direction} · ${activeFsCell.name}（${activeFsCell.tag}）`),
-            h('button', {
-              type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm',
-              onClick: () => onAskDeepSeek(`请结合 ${fsYear} 年流年九宫飞星中「${activeFsCell.direction}方飞临${activeFsCell.name}（${activeFsCell.tag}）」，用新手易操作的白话告诉我客厅、卧室或办公桌在这个方位具体怎么布置最加分？`),
-            }, '✦ 问 DeepSeek'),
+            h(DeepSeekButton, {
+              primary: true,
+              onClick: () => onAskDeepSeek(`请用《协纪辨方书》的三元年九星入中宫规则，解释 ${fsYear} 年${activeFsCell.name}为什么排到${activeFsCell.direction}。`),
+            }, t('action.askDeepSeek')),
           ),
-          h('div', { style: { fontSize: 12, color: 'var(--zm-text-sub)' } }, activeFsCell.tip),
+          h('div', { className: 'zm-muted' }, `洛书顺飞 · ${flyPath.map(p => p.trigram).join(' → ')}`),
+          h('div', { className: 'zm-muted' }, activeFsCell.flyStep === 0
+            ? '中宫是这一年的起点。'
+            : `从中宫沿此顺序数 ${activeFsCell.flyStep} 步，抵达${activeFsCell.trigram}宫（${activeFsCell.direction}）。`),
         ) : null,
       ) : null,
 
@@ -92,9 +95,9 @@ function createTutorialView(React, Visuals) {
               ),
               h('div', { className: 'zm-muted' }, `“${item.prompt}”`),
             ),
-            h('div', { style: { display: 'flex', gap: 5 } },
+            h('div', { className: 'zm-button-group' },
               h('button', { type: 'button', className: 'zm-btn zm-btn-sm', disabled: busy, onClick: () => onDemo(item.system) }, t('action.demo')),
-              h('button', { type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm', onClick: () => onAskDeepSeek(item.prompt) }, t('action.tryPrompt')),
+              h(DeepSeekButton, { primary: true, onClick: () => onAskDeepSeek(item.prompt) }, t('action.askDeepSeek')),
             ),
           )),
         ),
@@ -105,7 +108,7 @@ function createTutorialView(React, Visuals) {
         ...CLIENT_TUTORIAL_DATA.systemGuide.map(sys => h('div', { key: sys.id, className: 'zm-card' },
           h('div', { className: 'zm-card-title', style: { marginBottom: 5 } },
             h('span', null, sys.name),
-            h('div', { style: { display: 'flex', gap: 5 } },
+            h('div', { className: 'zm-button-group' },
               h('button', { type: 'button', className: 'zm-btn zm-btn-sm', onClick: () => onSelectTab(sys.id) }, '进入'),
               h('button', { type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm', disabled: busy, onClick: () => onDemo(sys.id) }, t('action.demo')),
             ),
@@ -121,7 +124,7 @@ function createTutorialView(React, Visuals) {
           h('div', { className: 'zm-card-title' }, h('span', null, '五行生克图解')),
           h('div', { className: 'zm-wuxing-grid' },
             h(WuXingPentagonSvg, {
-              percentages: { 木: 24, 火: 24, 土: 24, 金: 24, 水: 24 },
+              percentages: { 木: 20, 火: 20, 土: 20, 金: 20, 水: 20 },
               selectedElement: selectedEl,
               onSelectElement: el => setSelectedEl(el),
             }),
@@ -156,7 +159,7 @@ function createTutorialView(React, Visuals) {
           h('span', null, '玄学术语白话词典'),
           h('input', {
             className: 'zm-input',
-            style: { width: 145, padding: '4px 8px' },
+            style: { width: 'min(100%, 145px)' },
             placeholder: t('form.searchGlossary'),
             value: searchTerm,
             onChange: e => setSearchTerm(e.target.value),
@@ -164,10 +167,10 @@ function createTutorialView(React, Visuals) {
         ),
         filteredGlossary.length === 0 ? h('div', { className: 'zm-tip-banner', style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' } },
           h('span', null, `${t('glossary.empty')}「${trimmedQuery}」`),
-          h('button', {
-            type: 'button', className: 'zm-btn zm-btn-gold zm-btn-sm',
+          h(DeepSeekButton, {
+            primary: true,
             onClick: () => onAskDeepSeek(`请用生活中通俗易懂的比喻，给我详细讲讲风水命理中的「${trimmedQuery}」是什么意思？`),
-          }, t('dock.ask')),
+          }, t('action.askDeepSeek')),
         ) : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6 } },
           ...filteredGlossary.map(([term, desc]) => h('div', {
             key: term,
@@ -180,10 +183,9 @@ function createTutorialView(React, Visuals) {
               h('strong', { style: { color: 'var(--zm-gold)' } }, `${term}：`),
               desc,
             ),
-            h('button', {
-              type: 'button', className: 'zm-btn zm-btn-sm',
+            h(DeepSeekButton, {
               onClick: () => onAskDeepSeek(`请用生活中通俗易懂的比喻，给我详细讲讲风水命理中的「${term}」是什么意思？`),
-            }, t('dock.ask')),
+            }, t('action.askDeepSeek')),
           )),
         ),
       ) : null,

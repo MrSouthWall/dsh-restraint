@@ -1,7 +1,8 @@
-function createStudioComponent(React, Visuals, Views) {
+function createStudioComponent(React, Visuals, Views, birthProfileStore) {
   const h = React.createElement;
-  const { ZhimingErrorBoundary, LuopanEmblem } = Visuals;
+  const { ChoiceMenu, ZhimingErrorBoundary, LuopanEmblem } = Visuals;
   const { BaziView, QimenView, MeihuaView, ZiweiView, HepanView, TutorialView } = Views;
+  const BirthProfilesDialog = createBirthProfilesDialog(React, Visuals);
 
   const EMPTY_PROJECTION = {
     version: 1,
@@ -90,6 +91,8 @@ function createStudioComponent(React, Visuals, Views) {
     const t = props.t || (k => ZH_DICT[k] || k);
     const projection = useZhimingState(props.useProjection, props.projectionFace);
     const uiNav = useObservableFace(props.uiNavFace);
+    const profileSnapshot = useObservableFace(birthProfileStore);
+    const [profileDialog, setProfileDialog] = React.useState(null);
 
     const [activeTab, setActiveTab] = React.useState(() => {
       if (uiNav?.tab) return uiNav.tab;
@@ -244,9 +247,18 @@ function createStudioComponent(React, Visuals, Views) {
       return projection.charts.find(c => c.system === activeTab) || null;
     }, [activeTab, selectedChartId, projection.charts]);
 
-    const renderBody = () => {
+    React.useEffect(() => {
+      setProfileDialog(dialog => dialog?.tab && dialog.tab !== activeTab ? null : dialog);
+    }, [activeTab]);
+
+    const profileTools = {
+      pick: applyProfile => setProfileDialog({ tab: activeTab, applyProfile }),
+      saveDraft: (draft, applySaved) => setProfileDialog({ tab: activeTab, draft, applySaved }),
+    };
+
+    const renderView = () => {
       const commonProps = {
-        chart: chartForTab,
+        chart: chartForTab?.rulesVersion ? chartForTab : null,
         isDark,
         beginnerMode,
         busy,
@@ -257,15 +269,15 @@ function createStudioComponent(React, Visuals, Views) {
       };
       switch (activeTab) {
         case 'bazi':
-          return h(BaziView, commonProps);
+          return h(BaziView, { ...commonProps, profileTools });
         case 'qimen':
           return h(QimenView, commonProps);
         case 'meihua':
           return h(MeihuaView, commonProps);
         case 'ziwei':
-          return h(ZiweiView, commonProps);
+          return h(ZiweiView, { ...commonProps, profileTools });
         case 'hepan':
-          return h(HepanView, commonProps);
+          return h(HepanView, { ...commonProps, profileTools });
         default:
           return h(TutorialView, {
             isDark,
@@ -287,8 +299,12 @@ function createStudioComponent(React, Visuals, Views) {
               h(LuopanEmblem, { size: 28, spin: true }),
               h('div', { className: 'zm-brand-title' }, t('brand.short')),
             ),
-            h('div', { className: 'zm-hero-actions' },
-              // Dedicated Light / Dark Theme Segmented Switch
+            props.onReturnToConversation ? h('button', {
+              type: 'button',
+              className: 'zm-btn zm-btn-sm',
+              onClick: props.onReturnToConversation,
+            }, t('workspace.returnToConversation')) : null,
+            h('div', { className: 'zm-hero-group' },
               h('div', { className: 'zm-theme-seg', role: 'group', 'aria-label': '主题切换' },
                 h('button', {
                   type: 'button',
@@ -308,35 +324,42 @@ function createStudioComponent(React, Visuals, Views) {
                 className: `zm-btn zm-btn-sm ${beginnerMode ? 'zm-btn-primary' : ''}`,
                 role: 'switch',
                 'aria-checked': beginnerMode,
+                title: t(beginnerMode ? 'action.beginnerOn' : 'action.beginnerOff'),
                 onClick: () => setBeginnerMode(v => !v),
-              }, beginnerMode ? '白话提示' : '白话'),
-              projection.charts.length > 0 ? h(React.Fragment, null,
-                h('select', {
-                  className: 'zm-select',
-                  style: { width: 'auto', maxWidth: 124, padding: '3px 7px', fontSize: 11 },
-                  'aria-label': t('action.history'),
-                  value: chartForTab?.id || '',
-                  onChange: e => {
-                    const id = e.target.value;
-                    const found = projection.charts.find(c => c.id === id);
-                    if (found) {
-                      setSelectedChartId(found.id);
-                      setActiveTab(found.system);
-                    }
-                  },
+              }, '白话'),
+            ),
+            h('button', {
+              type: 'button',
+              className: 'zm-btn zm-btn-sm zm-profiles-trigger',
+              'aria-haspopup': 'dialog',
+              onClick: () => setProfileDialog({}),
+            }, t('profiles.title')),
+            h('div', { className: 'zm-hero-group' },
+              h(ChoiceMenu, {
+                compact: true,
+                label: t('action.history'),
+                placeholder: `${t('action.history')} (${projection.charts.length})`,
+                value: chartForTab?.id || '',
+                options: projection.charts.map(c => ({ value: c.id, label: c.title })),
+                onChange: id => {
+                  const found = projection.charts.find(c => c.id === id);
+                  if (found) {
+                    setSelectedChartId(found.id);
+                    setActiveTab(found.system);
+                  }
                 },
-                  h('option', { value: '' }, `${t('action.history')} (${projection.charts.length})`),
-                  ...projection.charts.map(c => h('option', { key: c.id, value: c.id }, c.title)),
-                ),
-                h('button', {
-                  type: 'button',
-                  className: 'zm-btn zm-btn-sm',
-                  disabled: busy,
-                  style: confirmClear ? { color: 'var(--zm-red)', borderColor: 'rgba(239,68,68,0.5)' } : undefined,
-                  onClick: handleClearHistory,
-                  onBlur: () => setConfirmClear(false),
-                }, confirmClear ? t('action.confirmClear') : t('action.clearHistory')),
-              ) : null,
+              }),
+              h('button', {
+                type: 'button',
+                className: 'zm-btn zm-btn-sm zm-history-clear',
+                disabled: busy || projection.charts.length === 0,
+                'data-confirm-clear': confirmClear && projection.charts.length > 0 ? '' : undefined,
+                onClick: handleClearHistory,
+                onBlur: () => setConfirmClear(false),
+              },
+                h('span', null, t('action.clearHistory')),
+                h('span', null, t('action.confirmClear')),
+              ),
             ),
           ),
           // 6 Navigation Pills
@@ -364,7 +387,8 @@ function createStudioComponent(React, Visuals, Views) {
 
         // Scrollable View Body
         h('div', { className: 'zm-body' },
-          renderBody(),
+          h(React.Fragment, null, chartForTab && !chartForTab.rulesVersion
+          ? h('div', { className: 'zm-tip-banner', role: 'status' }, t('status.recastOldChart')) : null, renderView()),
           toast ? h('div', {
             className: 'zm-toast',
             role: 'status',
@@ -374,12 +398,28 @@ function createStudioComponent(React, Visuals, Views) {
             h('span', null, toast.msg),
             h('button', {
               type: 'button',
+              className: 'zm-toast-close',
               'aria-label': 'Close',
-              style: { background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: 12 },
               onClick: () => setToast(null),
             }, '✕'),
           ) : null,
         ),
+        profileDialog ? h(BirthProfilesDialog, {
+          draft: profileDialog.draft,
+          snapshot: profileSnapshot,
+          store: birthProfileStore,
+          onDismiss: () => setProfileDialog(null),
+          onPick: profileDialog.applyProfile && (details => {
+            profileDialog.applyProfile(details);
+            setProfileDialog(null);
+          }),
+          onSaved: birth => {
+            profileDialog.applySaved(birth);
+            setProfileDialog(null);
+            showToast(t('profiles.saved'));
+          },
+          t,
+        }) : null,
       ),
     );
   };
